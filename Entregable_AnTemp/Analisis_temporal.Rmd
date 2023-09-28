@@ -32,16 +32,33 @@ En este caso práctico analizamos la serie temporal correspondiente al tráfico 
 ```{r}
 library(readr)
 library(forecast)
+library(ggplot2)
+library(dplyr)
 ```
 
 **Ejemplo**: Tráfico comercial, aeropuerto de Valencia. Fuente: Ministerio de transportes, movilidad y agenda urbana (https://www.fomento.gob.es/BE/?nivel=2&orden=03000000).  
 
 \vspace*{2mm}
 ```{r}
-Dat_Pasajeros <- read.csv(file="Pasajeros.csv",header=TRUE,sep=";")
-attach(Dat_Pasajeros)
-T <- length(Total)
-Pasajeros_ts <- ts(Total[121:T],start=c(2010,1),end=c(2019,12),frequency=12)
+Dat_UFO <- read.csv(file="complete.csv",header=TRUE,sep=",")
+attach(Dat_Wis)
+
+Dat_UFO$datetime <- as.POSIXct(Dat_UFO$datetime, format = "%m/%d/%Y %H:%M")
+
+# Supongamos que df2 tiene una columna llamada "fecha" con fechas en formato Date.
+# Creamos una columna "Año_Mes" que almacena el año y el mes.
+Util_UFO <- Dat_UFO %>%
+  mutate(Ano_Mes = format(datetime, "%Y/%m")) %>%
+  group_by(Ano_Mes) %>%
+  summarise(Conteo = n())
+
+Util_UFO <- Util_UFO %>%
+  arrange(Ano_Mes)
+
+# Imprimimos el DataFrame resultante
+attach(Util_UFO)
+UFO_ts <- ts(data = Conteo[763:826], start = c(2004, 01), frequency = 12)
+
 # Creamos una serie temporal con las observaciones a partir de enero de 2010. 
 # Como se trata de datos mensuales, definimos frequency=12
 ```
@@ -51,7 +68,7 @@ Pasajeros_ts <- ts(Total[121:T],start=c(2010,1),end=c(2019,12),frequency=12)
 Es habitual comenzar el análisis de una serie con la representación gráfica de los valores observados de la variable de interés en función del tiempo: 
 
 ```{r}
-plot(Pasajeros_ts,ylab="Num Pasajeros")
+plot(UFO_ts,ylab="Avistamiento de OVNIS")
 ```
 
 A partir del gráfico temporal podemos apreciar una cierta evolución en el largo plazo (*tendencia*): durante los primeros cuatro años se observa una tendencia decreciente. A partir de 2014, la serie temporal toma valores cada vez mayores, es decir, la serie presenta una tendencia creciente. Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con un número mayor de pasajeros durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
