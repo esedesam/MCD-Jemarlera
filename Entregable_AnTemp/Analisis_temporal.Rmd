@@ -1,0 +1,297 @@
+---
+title: \vspace{5cm} Análisis de una serie temporal. Tráfico comercial en el aeropuerto de Valencia.
+
+author: ""
+include-before:
+- \usepackage[spanish]{babel}
+- \usepackage[utf8]{inputenc}
+- \usepackage{amsmath,amssymb,amsfonts}
+- \usepackage{color}
+- \usepackage{xcolor}
+- \usepackage{graphicx}
+- \usepackage{eqnarray}
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '1'
+    citation_package: natbib
+    number_sections: yes
+    
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center",fig.width = 7,message = FALSE,warning = FALSE)
+```
+
+\newpage
+
+En este caso práctico analizamos la serie temporal correspondiente al tráfico comercial en el aeropuerto de Valencia.  Cargamos los dos paquetes de R que vamos a utilizar en el análisis.
+
+```{r}
+library(readr)
+library(forecast)
+```
+
+**Ejemplo**: Tráfico comercial, aeropuerto de Valencia. Fuente: Ministerio de transportes, movilidad y agenda urbana (https://www.fomento.gob.es/BE/?nivel=2&orden=03000000).  
+
+\vspace*{2mm}
+```{r}
+Dat_Pasajeros <- read.csv(file="Pasajeros.csv",header=TRUE,sep=";")
+attach(Dat_Pasajeros)
+T <- length(Total)
+Pasajeros_ts <- ts(Total[121:T],start=c(2010,1),end=c(2019,12),frequency=12)
+# Creamos una serie temporal con las observaciones a partir de enero de 2010. 
+# Como se trata de datos mensuales, definimos frequency=12
+```
+
+# Descripción gráfica de la serie temporal
+
+Es habitual comenzar el análisis de una serie con la representación gráfica de los valores observados de la variable de interés en función del tiempo: 
+
+```{r}
+plot(Pasajeros_ts,ylab="Num Pasajeros")
+```
+
+A partir del gráfico temporal podemos apreciar una cierta evolución en el largo plazo (*tendencia*): durante los primeros cuatro años se observa una tendencia decreciente. A partir de 2014, la serie temporal toma valores cada vez mayores, es decir, la serie presenta una tendencia creciente. Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con un número mayor de pasajeros durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
+
+En este ejemplo, la estacionalidad de la serie se observa claramente en el gráfico temporal. No obstante, el diagrama de cajas por mes nos permite también valorar la presencia de estacionalidad.
+
+```{r}
+Mes_ord <- factor(Mes[121:T],levels = c("Enero","Febrero","Marzo","Abril",
+"Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"))
+# Ordenamos los meses para que los represente por orden temporal
+
+boxplot(Total[121:T] ~ Mes_ord, ylab="", xlab="")
+```
+
+Una gráfica estacional es similar a una gráfica temporal, excepto que los datos se dibujan contra las “estaciones” individuales en las que se observaron los datos. A continuación se ofrece un ejemplo:
+```{r}
+library('ggplot2')
+ggseasonplot(Pasajeros_ts, year.labels=TRUE, year.labels.left=TRUE) +
+  ylab("Num Pasajeros") +
+  ggtitle("Seasonal plot: número de pasajeros en aeorpuerto Valencia")
+```
+
+
+# Análisis de la serie mediante suavizado exponencial
+
+Dadas las características de la serie temporal: tendencia y estacionalidad, el método adecuado para su análisis es el método de Holt-Winters.
+
+Vamos a empezar analizando la serie con el método de Holt-Winters aditivo pues, a partir del gráfico temporal, podríamos asumir que el efecto de la estacionalidad es aditivo (no parece aumentar con el nivel). No obstante, analizaremos también la serie con el método de Holt-Winters multiplicativo y la serie transformada (utilizando la transformación logarítmica) con Holt-Winters aditivo. 
+
+Utilizamos los datos hasta diciembre de 2018 para el ajuste y reservamos las observaciones de 2019 para valorar la capacidad predictiva del método seleccionado. La predicción para el año 2019 la realizaremos utilizando el método que nos proporciones un mejor ajuste.
+
+## Holt-Winters aditivo
+
+```{r}
+insample <- window(Pasajeros_ts,start=c(2010,1),end=c(2018,12))  
+      # ajuste desde enero de 2010 hasta diciembre de 2018
+outsample <- window(Pasajeros_ts,start=c(2019,1),end=c(2019,12)) 
+      # reservamos 2019 para valorar la predicción
+
+fitPasajeros <- HoltWinters(insample,seasonal="additive")
+fitPasajeros$coefficients
+fitPasajeros$alpha
+fitPasajeros$beta
+fitPasajeros$gamma
+
+fitval <- fitted(fitPasajeros)  
+# fitval contiene la serie de valores ajustados en la primera columna (fitval[,1] = xhat)
+
+plot(fitPasajeros,ylab="Num Pasajeros",main="Ajuste HW aditivo")
+
+# Valoramos la bondad del ajuste
+
+insamplecut <- window(insample,start=c(2011,1),end=c(2018,12))
+# El año 2010 se utiliza para calcular las condiciones iniciales. 
+# El ajuste pues se obtiene a partir de enero de 2011.
+
+rmse <- sqrt(mean((insamplecut-fitval[,1])^2))
+mape <- 100*mean(abs(insamplecut-fitval[,1])/insamplecut)
+rmse; mape
+```
+
+## Holt-Winters multiplicativo
+
+```{r}
+fitPasajeros_mult <- HoltWinters(insample,seasonal="multiplicative")
+fitPasajeros_mult$coefficients
+fitPasajeros_mult$alpha
+fitPasajeros_mult$beta
+fitPasajeros_mult$gamma
+
+fitval_mult <- fitted(fitPasajeros_mult)  
+
+plot(fitPasajeros_mult,ylab="Num Pasajeros",main="Ajuste HW multiplicativo")
+
+# Valoramos la bondad del ajuste
+
+rmse_mult <- sqrt(mean((insamplecut-fitval_mult[,1])^2))
+mape_mult <- 100*mean(abs(insamplecut-fitval_mult[,1])/insamplecut)
+rmse_mult; mape_mult
+```
+
+## Holt-Winters aditivo aplicado a la serie transformada
+
+```{r}
+loginsample <- log(insample) 
+
+fitPasajeros_log <- HoltWinters(loginsample,seasonal="additive")
+fitPasajeros_log$coefficients
+fitPasajeros_log$alpha
+fitPasajeros_log$beta
+fitPasajeros_log$gamma
+
+fitval_log <- fitted(fitPasajeros_log)  
+
+plot(fitPasajeros_log,ylab="Log(Num Pasajeros)",main="Ajuste HW aditivo a la serie de los logaritmos")
+
+# Valoramos la bondad del ajuste. Para ello, volvemos previamente a la escala original
+
+fitval_ori <- exp(fitval_log[,1])
+
+rmse_log <- sqrt(mean((insamplecut-fitval_ori)^2))
+mape_log <- 100*mean(abs(insamplecut-fitval_ori)/insamplecut)
+rmse_log; mape_log
+```
+
+El método con menor error de ajuste (tanto RMSE como MAPE) es Holt-Winters con estacionalidad aditiva. Este será, por tanto, el método utilizado para calcular la predicción para el año 2019. 
+
+```{r}
+pred <- predict(fitPasajeros,12)
+# pred contiene las predicciones puntuales para los 12 meses de 2019
+ts.plot(insample,pred,lty=1:2)
+
+# Valoramos la capacidad predictiva del método
+
+rmse_pred <- sqrt(mean((outsample-pred)^2))
+mape_pred <- 100*mean(abs(outsample-pred)/outsample)
+rmse_pred;mape_pred
+```
+Podemos también representar gráficamente los valores reales de 2019 que habíamos reservado junto con la predicción puntual:
+
+```{r}
+plot(pred, col="red",xaxt="n",xlab="Año 2019")
+points(outsample,pch=19)
+```
+
+y calcular el intervalo de predicción al 95\%:
+
+```{r}
+pred <- predict(fitPasajeros,n.ahead=12,prediction.interval=TRUE,level=0.95) 
+plot(fitPasajeros, pred)
+```
+
+# Análisis de la serie mediante la metodología Box-Jenkins
+
+Dadas las características de la serie temporal: tendencia y estacionalidad, el primer paso del análisis es determinar la transformación estacionaria de la serie.
+
+Calculamos un diferencia estacional ($D = 1$):
+
+```{r}
+d12insample <- diff(insample,12)
+plot(d12insample)
+```
+
+Parece que hemos quitado la estacionalidad, pero todavía queda la tendencia. Calculamos pues una diferencia regular ($d = 1$):
+
+```{r}
+dd12insample <- diff(d12insample)
+plot(dd12insample)
+```
+
+Podemos asumir que la serie diferenciada con $d = 1$ y $D = 1$ ya es estacionaria. Pasamos a examinar el correlograma y el correlograma parcial:
+
+```{r}
+acf(dd12insample,lag.max=50)
+pacf(dd12insample,lag.max=50)
+```
+
+Si nos fijamos en los primeros retardos, podemos pensar:
+
+* La función de autocorrelación tiene el primer coeficiente significativo, mientras que la función de autocorrelación parcial muestra decrecimiento: (p,d,q) = (0,1,1)
+
+* La función de autocorrelación decrece y la función de autocorrelación parcial tiene el primer coeficiente significativo: (p,d,q) = (1,1,0)
+
+* Las dos funciones muestran decrecimiento a partir del primer coeficiente: (p,d,q) = (1,1,1)
+
+Si nos fijamos en los retardos estacionales (Lag = 1, 2, 3, 4 ciclos estacionales), podemos pensar:
+
+* No hay ningún coeficiente significativo: (P,D,Q) = (0,1,0)
+
+* La función de autocorrelación tiene el primer coeficiente significativo, mientras que la función de autocorrelación parcial muestra decrecimiento: (P,D,Q) = (0,1,1)
+
+Veamos el ajuste proporcionado por los distintos modelos:
+
+```{r}
+Pasajeros_model1 <- arima(insample, order=c(0,1,1), seasonal=list(order=c(0,1,0), period=12))
+Pasajeros_model1
+
+Pasajeros_model2 <- arima(insample, order=c(0,1,1), seasonal=list(order=c(0,1,1), period=12))
+Pasajeros_model2
+
+Pasajeros_model3 <- arima(insample, order=c(1,1,0), seasonal=list(order=c(0,1,0), period=12))
+Pasajeros_model3
+
+Pasajeros_model4 <- arima(insample, order=c(1,1,0), seasonal=list(order=c(0,1,1), period=12))
+Pasajeros_model4
+
+Pasajeros_model5 <- arima(insample, order=c(1,1,1), seasonal=list(order=c(0,1,0), period=12))
+Pasajeros_model5
+
+Pasajeros_model6 <- arima(insample, order=c(1,1,1), seasonal=list(order=c(0,1,1), period=12))
+Pasajeros_model6
+
+
+Pasajeros_model <- auto.arima(insample)
+Pasajeros_model
+
+accuracy(Pasajeros_model)
+```
+
+El modelo de menor AIC es (p,d,q)(P,D,Q) = (0,1,1)(0,1,1), que coincide con el modelo proporcionado por la función <code>auto.arima</code>. El MAPE asociado a este modelo es 2.4599. La ecuación del modelo es: 
+$$
+\bigtriangledown \bigtriangledown_{12} x_t = (1 - 0.3712 B) (1 - 0.2461 B^{12})\epsilon_t
+$$
+$$
+(1 - B) (1 - B^{12}) x_t = (1 - 0.3712 B) (1 - 0.2461 B^{12})\epsilon_t
+$$
+
+Veamos a continuación la representación gráfica del ajuste obtenido. Línea negra: valores reales, línea roja: valores ajustados. 
+
+```{r}
+fitval <- Pasajeros_model$fitted # Valores ajustados
+
+plot(insample,ylab="Num Pasajeros")
+lines(fitval,col="red")
+```
+
+Antes de pasar a la predicción, comprobamos que el modelo es válido. Como muestran las siguientes salidas, los residuos del modelo pueden considerarse ruido blanco. 
+
+```{r}
+checkresiduals(Pasajeros_model,plot=TRUE)
+```
+
+La predicción obtenida para los 12 meses de 2019 junto con el error de predicción vienen dados por:
+
+```{r}
+pred <- forecast(Pasajeros_model,h=12)$mean
+pred # Predicción puntual
+
+plot(forecast(Pasajeros_model,h=12))
+
+rmse_pred <- sqrt(mean((outsample-pred)^2))
+mape_pred <- 100*mean(abs(outsample-pred)/outsample)
+rmse_pred;mape_pred
+```
+
+Finalmente, representamos gráficamente los valores reales de 2019 que habíamos reservado junto con la predicción puntual:
+
+```{r}
+plot(pred, col="red",xaxt="n",xlab="Año 2019")
+points(outsample,pch=19)
+```
+
+Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters aditivo y, por tanto, como predicción para el año 2019 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2019 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).  
