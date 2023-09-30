@@ -40,27 +40,27 @@ library(dplyr)
 
 \vspace*{2mm}
 ```{r}
+# Cargamos el csv con los datos de avistamientos de ovnis
 Dat_UFO <- read.csv(file="complete.csv",header=TRUE,sep=",")
-attach(Dat_Wis)
 
+# Formateamos la columna datetime a POSIXct
 Dat_UFO$datetime <- as.POSIXct(Dat_UFO$datetime, format = "%m/%d/%Y %H:%M")
+Dat_UFO <- na.omit(Dat_UFO) # Eliminamos datos mal formateados
 
-# Supongamos que df2 tiene una columna llamada "fecha" con fechas en formato Date.
-# Creamos una columna "Año_Mes" que almacena el año y el mes.
+# A partir de la columna datetime:
 Util_UFO <- Dat_UFO %>%
-  mutate(Ano_Mes = format(datetime, "%Y/%m")) %>%
-  group_by(Ano_Mes) %>%
-  summarise(Conteo = n())
+  mutate(Ano_Mes = format(datetime, "%Y/%m")) %>% # Creamos una columna "Ano_Mes" que almacena el año y el mes
+  group_by(Ano_Mes) %>% # Agrupamos por año y mes
+  summarise(Conteo = n()) %>% # Contamos la frecuencia absoluta
+  arrange(Ano_Mes) # Ordenamos cronológicamente
 
-Util_UFO <- Util_UFO %>%
-  arrange(Ano_Mes)
+attach(Util_UFO)
 
 # Imprimimos el DataFrame resultante
-attach(Util_UFO)
-UFO_ts <- ts(data = Conteo[763:826], start = c(2004, 01), frequency = 12)
+head(Util_UFO)
 
-# Creamos una serie temporal con las observaciones a partir de enero de 2010. 
-# Como se trata de datos mensuales, definimos frequency=12
+# Creamos una serie temporal con las observaciones entre 2004 y 2009
+UFO_ts <- ts(data = Conteo[763:826], start = c(2004, 01), frequency = 12)
 ```
 
 # Descripción gráfica de la serie temporal
@@ -68,7 +68,8 @@ UFO_ts <- ts(data = Conteo[763:826], start = c(2004, 01), frequency = 12)
 Es habitual comenzar el análisis de una serie con la representación gráfica de los valores observados de la variable de interés en función del tiempo: 
 
 ```{r}
-plot(UFO_ts,ylab="Avistamiento de OVNIS")
+autoplot(UFO_ts, xlab = "Tiempo / años", ylab = "Avistamiento de OVNIs") +
+  theme_minimal()
 ```
 
 A partir del gráfico temporal podemos apreciar una cierta evolución en el largo plazo (*tendencia*): durante los primeros cuatro años se observa una tendencia decreciente. A partir de 2014, la serie temporal toma valores cada vez mayores, es decir, la serie presenta una tendencia creciente. Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con un número mayor de pasajeros durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
@@ -76,19 +77,24 @@ A partir del gráfico temporal podemos apreciar una cierta evolución en el larg
 En este ejemplo, la estacionalidad de la serie se observa claramente en el gráfico temporal. No obstante, el diagrama de cajas por mes nos permite también valorar la presencia de estacionalidad.
 
 ```{r}
-Mes_ord <- factor(Mes[121:T],levels = c("Enero","Febrero","Marzo","Abril",
-"Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"))
+Util_UFO <- Util_UFO %>%
+  mutate(Mes = sub("^\\d{4}/(\\d{2}).*", "\\1", Ano_Mes),
+         Mes = month.abb[as.integer(Mes)])
+
+Util_UFO$Mes <- factor(Util_UFO$Mes, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
+                  labels = c("Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                             "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"))
 # Ordenamos los meses para que los represente por orden temporal
 
-boxplot(Total[121:T] ~ Mes_ord, ylab="", xlab="")
+boxplot(Conteo ~ Util_UFO$Mes, xlab = "Tiempo / años", ylab = "Avistamiento de OVNIs")
 ```
 
 Una gráfica estacional es similar a una gráfica temporal, excepto que los datos se dibujan contra las “estaciones” individuales en las que se observaron los datos. A continuación se ofrece un ejemplo:
 ```{r}
-library('ggplot2')
-ggseasonplot(Pasajeros_ts, year.labels=TRUE, year.labels.left=TRUE) +
-  ylab("Num Pasajeros") +
-  ggtitle("Seasonal plot: número de pasajeros en aeorpuerto Valencia")
+ggseasonplot(UFO_ts, year.labels = TRUE, year.labels.left = TRUE) +
+  ylab("Avistamiento de OVNIs") +
+  ggtitle("Seasonal plot: número de avistamientos de OVNIs")
 ```
 
 
