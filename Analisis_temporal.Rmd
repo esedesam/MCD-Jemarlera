@@ -98,7 +98,7 @@ ggplot(total_by_source[total_by_source$ENERGY.SOURCE != "Total",], aes(x = date,
 Ahora elegimos la fuente de energía a estudiar.
 
 ```{r}
-sel_energia <- "Solar Thermal and Photovoltaic" # Solar -> "Solar Thermal and Photovoltaic"
+sel_energia <- "Total" # Solar -> "Solar Thermal and Photovoltaic"
 switch(sel_energia,
        "Solar Thermal and Photovoltaic" = {
          energy_source_label <- "Energía solar, térmica y fotovoltaica"
@@ -170,8 +170,8 @@ Utilizamos los datos hasta diciembre de 2021 para el ajuste y reservamos las obs
 ## Holt-Winters aditivo
 
 ```{r}
-insample <- window(energy_source_ts, start = c(2012,1), end = c(2020,12))  
-outsample <- window(energy_source_ts, start = c(2021,1), end = c(2021,12)) 
+insample <- window(energy_source_ts, start = c(2012,1), end = c(2020,12))
+outsample <- window(energy_source_ts, start = c(2021,1), end = c(2021,12))
 
 energy_source_HW_add <- HoltWinters(insample, seasonal="additive")
 energy_source_HW_add$coefficients
