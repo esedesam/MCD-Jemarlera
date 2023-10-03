@@ -106,6 +106,9 @@ switch(sel_energia,
        "Wind" = {
          energy_source_label <- "Energía eólica"
        },
+       "Total" = {
+         energy_source_label <- "Energía total"
+       },
        {
          energy_source_label <- sel_energia
        })
