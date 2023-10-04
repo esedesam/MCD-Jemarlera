@@ -27,7 +27,7 @@ knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.width = 7, message 
 
 \newpage
 
-En este caso práctico analizamos la serie temporal correspondiente al tráfico comercial en el aeropuerto de Valencia.  Cargamos los dos paquetes de R que vamos a utilizar en el análisis.
+En este caso práctico analizamos la serie temporal correspondiente a la generación de los distintos tipos de energía en Estados Unidos. Cargamos los cuatro paquetes de R que vamos a utilizar en el análisis e inicializamos el entorno.
 
 ```{r}
 rm(list = ls())
@@ -38,13 +38,14 @@ library(dplyr)
 setwd("D:/CDC-Jemarlera") # TENEIS QUE SETEAR EL WD
 ```
 
-Seteamos algunas constantes útiles.
+Seteamos algunas constantes útiles, en este caso, las etiquetas de los ejes de las representaciones gráficas van a ser constantes en la mayoría de gráficos.
 
 ```{r}
 x_label <- "Tiempo / años"
 y_label <- "Energía generada / MWh"
 ```
 
+Para hacernos una idea de los datos que tenemos, lo mejor qu epodemo shacer es representarlos. Tras cargar el dataset, generamos una gráfica coon todos los tipos de energía.
 
 ```{r}
 # Cargamos el csv con los datos generación de energía en US
@@ -62,7 +63,7 @@ Dat <- Dat %>%
 #   cat(column, ": ", unique_values, " || Total Values:", num_unique_values, "\n\n")
 # }
 
-# construimos la columna date
+# Construimos la columna date
 Dat <- Dat %>%
   mutate(date = as.Date(paste(YEAR, MONTH, "01", sep = "-"), format = "%Y-%m-%d")) %>%
   select(date, everything()) %>%
@@ -98,10 +99,10 @@ ggplot(total_by_source[total_by_source$ENERGY.SOURCE != "Total",], aes(x = date,
 Ahora elegimos la fuente de energía a estudiar.
 
 ```{r}
-sel_energia <- "Total" # Solar -> "Solar Thermal and Photovoltaic"
+sel_energia <- "Total" # Solar -> "Solar Thermal and Photovoltaic" QUITAR ESTO
 switch(sel_energia,
        "Solar Thermal and Photovoltaic" = {
-         energy_source_label <- "Energía solar, térmica y fotovoltaica"
+         energy_source_label <- "Energía solar-térmica y fotovoltaica"
        },
        "Wind" = {
          energy_source_label <- "Energía eólica"
@@ -117,11 +118,14 @@ energy_source_df_all <- filter(total_by_source, ENERGY.SOURCE == sel_energia) %>
   select(-ENERGY.SOURCE)
 
 #Seleccionamos el periodo de tiempo a estudiar
+
 start_idx <- which(energy_source_df_all$date == "2012-01-01")
 end_idx <- which(energy_source_df_all$date == "2021-12-01")
 
 energy_source_df <- energy_source_df_all[start_idx:end_idx,]
 head(energy_source_df)
+
+#Generamos la serie temporal
 
 energy_source_ts <- ts(data = energy_source_df$gen.MWh, start = c(2012, 01), frequency = 12)
 ```
@@ -136,7 +140,7 @@ autoplot(energy_source_ts, xlab = "Tiempo / años", ylab = "Generación de energ
   theme_light()
 ```
 
-A partir del gráfico temporal podemos apreciar una cierta evolución en el largo plazo (*tendencia*): durante los primeros cuatro años se observa una tendencia decreciente. A partir de 2014, la serie temporal toma valores cada vez mayores, es decir, la serie presenta una tendencia creciente. Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con un número mayor de pasajeros durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
+A partir del gráfico temporal podemos apreciar una cierta evolución en el largo plazo (*tendencia*): durante los primeros cuatro años se observa una tendencia decreciente. A partir de 2014, la serie temporal toma valores cada vez mayores, es decir, la serie presenta una tendencia creciente. Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con una mayor generación de eenrgía durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
 
 En este ejemplo, la estacionalidad de la serie se observa claramente en el gráfico temporal. No obstante, el diagrama de cajas por mes nos permite también valorar la presencia de estacionalidad.
 
