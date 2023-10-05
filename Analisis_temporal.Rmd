@@ -296,14 +296,16 @@ Calculamos un diferencia estacional ($D = 1$):
 
 ```{r}
 d12insample <- diff(insample, 12)
-plot(d12insample)
+plot(d12insample, xlab = x_label, ylab = y_label,
+     main = paste("Serie diferenciada con D = 1:", energy_source_label))
 ```
 
 Parece que hemos quitado la estacionalidad, pero todavía queda la tendencia. Calculamos pues una diferencia regular ($d = 1$):
 
 ```{r}
 dd12insample <- diff(d12insample)
-plot(dd12insample)
+plot(dd12insample, xlab = x_label, ylab = y_label,
+     main = paste("Serie diferenciada con D = 1 y d = 1:", energy_source_label))
 ```
 
 Podemos asumir que la serie diferenciada con $d = 1$ y $D = 1$ ya es estacionaria. Pasamos a examinar el correlograma y el correlograma parcial:
@@ -330,29 +332,24 @@ Si nos fijamos en los retardos estacionales (Lag = 1, 2, 3, 4 ciclos estacionale
 Veamos el ajuste proporcionado por los distintos modelos:
 
 ```{r}
-Pasajeros_model1 <- arima(insample, order=c(0,1,1), seasonal=list(order=c(0,1,0), period=12))
-Pasajeros_model1
+library(astsa)
+print("Modelo 1")
+source_energy_model_1 <- arima(insample, order=c(2,1,2), seasonal=list(order=c(0,1,2), period=12))
+source_energy_model_1
+print("Modelo 1: p values")
+source_energy_model_1s <- sarima(dd12insample,2,1,2,0,1,2,12)
+source_energy_model_1s$ttable
 
-Pasajeros_model2 <- arima(insample, order=c(0,1,1), seasonal=list(order=c(0,1,1), period=12))
-Pasajeros_model2
+print("Modelo 2")
+source_energy_model_2 <- arima(insample, order=c(1,1,2), seasonal=list(order=c(0,1,1), period=12))
+source_energy_model_2
+print("Modelo 2: p values")
+source_energy_model_2s <- sarima(dd12insample,1,1,2,0,1,1,12)
+source_energy_model_2s$ttable
 
-Pasajeros_model3 <- arima(insample, order=c(1,1,0), seasonal=list(order=c(0,1,0), period=12))
-Pasajeros_model3
-
-Pasajeros_model4 <- arima(insample, order=c(1,1,0), seasonal=list(order=c(0,1,1), period=12))
-Pasajeros_model4
-
-Pasajeros_model5 <- arima(insample, order=c(1,1,1), seasonal=list(order=c(0,1,0), period=12))
-Pasajeros_model5
-
-Pasajeros_model6 <- arima(insample, order=c(1,1,1), seasonal=list(order=c(0,1,1), period=12))
-Pasajeros_model6
-
-
-Pasajeros_model <- auto.arima(insample)
-Pasajeros_model
-
-accuracy(Pasajeros_model)
+print("Auto ARIMA")
+source_energy_model_auto <- auto.arima(insample)
+source_energy_model_auto
 ```
 
 El modelo de menor AIC es (p,d,q)(P,D,Q) = (0,1,1)(0,1,1), que coincide con el modelo proporcionado por la función <code>auto.arima</code>. El MAPE asociado a este modelo es 2.4599. La ecuación del modelo es: 
@@ -366,25 +363,29 @@ $$
 Veamos a continuación la representación gráfica del ajuste obtenido. Línea negra: valores reales, línea roja: valores ajustados. 
 
 ```{r}
-fitval <- Pasajeros_model$fitted # Valores ajustados
+# Elegimos modelo
+source_energy_model <- source_energy_model_2
+fitval <- fitted(source_energy_model)
 
-plot(insample,ylab="Num Pasajeros")
-lines(fitval,col="red")
+plot(insample, xlab = x_label, ylab = y_label,
+     main = paste("Ajuste de ARIMA:", energy_source_label))
+lines(fitval, col = "red")
 ```
 
 Antes de pasar a la predicción, comprobamos que el modelo es válido. Como muestran las siguientes salidas, los residuos del modelo pueden considerarse ruido blanco. 
 
 ```{r}
-checkresiduals(Pasajeros_model,plot=TRUE)
+checkresiduals(source_energy_model, plot=TRUE)
 ```
 
 La predicción obtenida para los 12 meses de 2019 junto con el error de predicción vienen dados por:
 
 ```{r}
-pred <- forecast(Pasajeros_model,h=12)$mean
+pred <- forecast(source_energy_model, h = 12)$mean
 pred # Predicción puntual
 
-plot(forecast(Pasajeros_model,h=12))
+plot(forecast(source_energy_model,h=12), xlab = x_label, ylab = y_label,
+     main = paste("Intervalos de confianza de ARIMA para 2022:", energy_source_label))
 
 rmse_pred <- sqrt(mean((outsample-pred)^2))
 mape_pred <- 100*mean(abs(outsample-pred)/outsample)
@@ -394,8 +395,17 @@ rmse_pred;mape_pred
 Finalmente, representamos gráficamente los valores reales de 2019 que habíamos reservado junto con la predicción puntual:
 
 ```{r}
-plot(pred, col="red",xaxt="n",xlab="Año 2019")
+plot(pred, col="red",xaxt="n", xlab = x_label, ylab = y_label,
+     main = paste("Datos y predicción ARIMA para el año 2022:", energy_source_label))
 points(outsample,pch=19)
+legend("topleft", legend = c("Predicción ARIMA", "Datos reales"),
+       col = c("red", "black"), pch = c(NA, 19), lty = c(1, 0))
 ```
 
-Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters aditivo y, por tanto, como predicción para el año 2019 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2019 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).  
+Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters aditivo y, por tanto, como predicción para el año 2019 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2019 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).
+
+```{r}
+plot(diff(diff(diff(exp(1:10)))))
+lines(exp(1:10))
+```
+
