@@ -1,7 +1,8 @@
 ---
-title: \vspace{5cm} Análisis de una serie temporal. Tráfico comercial en el aeropuerto de Valencia.
+title: \vspace{5cm} Análisis de una serie temporal. US Energy Generation
 
-author: ""
+author: "Samuel Ortega Mediavilla, Pablo Vicente Martínez y Jesús Martínez Leal"
+
 include-before:
 - \usepackage[spanish]{babel}
 - \usepackage[utf8]{inputenc}
@@ -35,7 +36,7 @@ library(readr)
 library(forecast)
 library(ggplot2)
 library(dplyr)
-setwd("D:/CDC-Jemarlera") # TENEIS QUE SETEAR EL WD
+setwd("C:/CDC-Jemarlera") # TENEIS QUE SETEAR EL WD
 ```
 
 Seteamos algunas constantes útiles, en este caso, las etiquetas de los ejes de las representaciones gráficas van a ser constantes en la mayoría de gráficos.
@@ -49,7 +50,7 @@ Para hacernos una idea de los datos que tenemos, lo mejor qu epodemo shacer es r
 
 ```{r}
 # Cargamos el csv con los datos generación de energía en US
-Dat <- read.csv(file = "./data/organised_Gen.csv", header = TRUE, sep= ",", dec = ".")
+Dat <- read.csv(file = "./data/organised_Gen.csv", header = TRUE, sep = ",", dec = ".")
 
 # Eliminamos la columna de indices
 Dat <- Dat %>%
@@ -292,7 +293,7 @@ legend("topleft", legend = c("Datos 2012-2020", "Predicción completa", "Confian
 
 Dadas las características de la serie temporal: tendencia y estacionalidad, el primer paso del análisis es determinar la transformación estacionaria de la serie.
 
-Calculamos un diferencia estacional ($D = 1$):
+Calculamos una diferencia estacional ($D = 1$):
 
 ```{r}
 d12insample <- diff(insample, 12)
@@ -300,7 +301,7 @@ plot(d12insample, xlab = x_label, ylab = y_label,
      main = paste("Serie diferenciada con D = 1:", energy_source_label))
 ```
 
-Parece que hemos quitado la estacionalidad, pero todavía queda la tendencia. Calculamos pues una diferencia regular ($d = 1$):
+Parece que hemos quitado la estacionalidad, pero todavía queda la tendencia. Calculamos pues una diferencia regular ($d = 1$): #d = 0 probar
 
 ```{r}
 dd12insample <- diff(d12insample)
@@ -334,18 +335,25 @@ Veamos el ajuste proporcionado por los distintos modelos:
 ```{r}
 library(astsa)
 print("Modelo 1")
-source_energy_model_1 <- arima(insample, order=c(2,1,2), seasonal=list(order=c(0,1,2), period=12))
+source_energy_model_1 <- arima(insample, order = c(2,1,2), seasonal = list(order=c(0,1,2), period=12))
 source_energy_model_1
 print("Modelo 1: p values")
 source_energy_model_1s <- sarima(dd12insample,2,1,2,0,1,2,12)
 source_energy_model_1s$ttable
 
 print("Modelo 2")
-source_energy_model_2 <- arima(insample, order=c(1,1,2), seasonal=list(order=c(0,1,1), period=12))
+source_energy_model_2 <- arima(insample, order = c(1,1,2), seasonal = list(order = c(0,1,1), period=12))
 source_energy_model_2
 print("Modelo 2: p values")
 source_energy_model_2s <- sarima(dd12insample,1,1,2,0,1,1,12)
 source_energy_model_2s$ttable
+
+print("Modelo 3")
+source_energy_model_3 <- arima(insample, order = c(1,0,2), seasonal = list(order = c(0,1,1), period = 12))
+source_energy_model_3
+print("Modelo 3: p values")
+source_energy_model_3s <- sarima(dd12insample,1,0,2,0,1,1,12)
+source_energy_model_3s$ttable
 
 print("Auto ARIMA")
 source_energy_model_auto <- auto.arima(insample)
@@ -364,7 +372,7 @@ Veamos a continuación la representación gráfica del ajuste obtenido. Línea n
 
 ```{r}
 # Elegimos modelo
-source_energy_model <- source_energy_model_2
+source_energy_model <- source_energy_model_3
 fitval <- fitted(source_energy_model)
 
 plot(insample, xlab = x_label, ylab = y_label,
