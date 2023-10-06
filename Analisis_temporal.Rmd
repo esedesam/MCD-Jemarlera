@@ -1,7 +1,7 @@
 ---
 title: \vspace{5cm} Análisis de una serie temporal. US Energy Generation
 
-author: "Samuel Ortega Mediavilla, Pablo Vicente Martínez y Jesús Martínez Leal"
+author: "Samuel Ortega Mediavilla, Pablo Vicente Martínez y Jesúsa Martínez Leal"
 
 include-before:
 - \usepackage[spanish]{babel}
