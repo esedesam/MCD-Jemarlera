@@ -37,7 +37,6 @@ library(ggplot2)
 library(dplyr)
 library(astsa)
 library(knitr)
-#setwd("D:/CDC-Jemarlera") # TENEIS QUE SETEAR EL WD
 ```
 
 Seteamos algunas constantes útiles, en este caso, las etiquetas de los ejes de las representaciones gráficas van a ser constantes en la mayoría de gráficos.
@@ -279,7 +278,7 @@ mape_pred <- 100 * mean( abs(outsample - pred) / outsample )
 
 cat("Predicción para 2021:\nRMSE:", rmse_pred, "$", "\nMAPE:", mape_pred, "%", "\n")
 
-# pred contiene las predicciones puntuales para los 12 meses de 2022
+# pred contiene las predicciones puntuales para los 12 meses de 2021
 ts.plot(insample, pred, lty = 1:2,
         gpars = list(xlab = x_label, ylab = y_label,
                      main = paste("Predicción para el año 2021:\n", energy_source_label)))
@@ -287,7 +286,7 @@ legend("topleft", legend = c("Datos 2012-2020", "Predicción 2021"),
        lty = c(1, 2))
 ```
 
-Podemos también representar gráficamente los valores reales de 2022 que habíamos reservado junto con la predicción puntual:
+Podemos también representar gráficamente los valores reales de 2021 que habíamos reservado junto con la predicción puntual:
 
 ```{r}
 plot(pred, col = "red", xaxt = "n", xlab = "Año 2021", ylab = y_label,
@@ -450,15 +449,15 @@ pred <- forecast(source_energy_model, h = 12)$mean
 pred # Predicción puntual
 
 plot(forecast(source_energy_model,h=12), xlab = x_label, ylab = y_label,
-     main = paste("Intervalos de confianza de ARIMA para 2022:\n", energy_source_label))
+     main = paste("Intervalos de confianza de ARIMA para 2021:\n", energy_source_label))
 
 rmse_pred <- sqrt(mean((outsample-pred)^2))
 mape_pred <- 100*mean(abs(outsample-pred)/outsample)
 
-cat("Predicción para 2022:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
+cat("Predicción para 2021:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
 ```
 
-Finalmente, representamos gráficamente los valores reales de 2022 que habíamos reservado junto con la predicción puntual:
+Finalmente, representamos gráficamente los valores reales de 2021 que habíamos reservado junto con la predicción puntual:
 
 ```{r}
 plot(pred, col="red",xaxt="n", xlab = "Año 2021", ylab = y_label,
@@ -670,7 +669,7 @@ legend("topleft", legend = c("Datos 2012-2020", "Predicción 2021"),
        lty = c(1, 2))
 ```
 
-Podemos también representar gráficamente los valores reales de 2022 que habíamos reservado junto con la predicción puntual:
+Podemos también representar gráficamente los valores reales de 2021 que habíamos reservado junto con la predicción puntual:
 
 ```{r}
 plot(pred, col = "red", xaxt = "n", xlab = "Año 2021", ylab = y_label,
