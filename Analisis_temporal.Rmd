@@ -1,15 +1,15 @@
 ---
-title: "\vspace{5cm} Análisis de una serie temporal"
+title: "Análisis de una serie temporal"
 author: "Jesús Martínez Leal, Samuel Ortega Mediavilla & Pablo Vicente Martínez"
 subtitle: US Energy Generation
 output:
-  pdf_document:
-    toc: yes
   html_document:
     df_print: paged
     toc: yes
     citation_package: natbib
     number_sections: yes
+  pdf_document:
+    toc: yes
 include-before:
 - \usepackage[spanish]{babel}
 - \usepackage[utf8]{inputenc}
@@ -27,10 +27,10 @@ knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.width = 7, message 
 
 \newpage
 
-En este caso práctico analizamos la serie temporal correspondiente a la generación de los distintos tipos de energía en Estados Unidos. Cargamos los cuatro paquetes de R que vamos a utilizar en el análisis e inicializamos el entorno.
+En este caso práctico analizamos la serie temporal correspondiente a la generación de los distintos tipos de energía en Estados Unidos. Cargamos los paquetes de R que vamos a utilizar en el análisis e inicializamos el entorno.
 
 ```{r}
-rm(list = ls())
+rm(list = ls()) # borrado de variables previas
 library(readr)
 library(forecast)
 library(ggplot2)
@@ -48,7 +48,7 @@ y_label <- "Energía generada / MWh"
 y_label_log <- " log(Energía generada / MWh)"
 ```
 
-Para hacernos una idea de los datos que tenemos, lo mejor qu epodemo shacer es representarlos. Tras cargar el dataset, generamos una gráfica coon todos los tipos de energía.
+Para hacernos una idea de los datos que tenemos, lo mejor que podemos hacer es representarlos. Tras cargar el dataset, generamos una gráfica coon todos los tipos de energía.
 
 ```{r}
 # Cargamos el csv con los datos generación de energía en US
@@ -138,7 +138,7 @@ autoplot(energy_source_ts, xlab = "Tiempo / años", ylab = "Generación de energ
   theme_light()
 ```
 
-A partir del gráfico temporal podemos apreciar carencia de (*tendencia*): la energía total no presenta ni un aevolución al alza o a la baja a lo largo del tiempo. Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con una mayor generación de enrgía durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
+A partir del gráfico temporal podemos apreciar carencia de *tendencia*: la energía total no presenta ni una evolución al alza o a la baja a lo largo del tiempo. Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con una mayor generación de energía durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
 
 En este ejemplo, la estacionalidad de la serie se observa claramente en el gráfico temporal. No obstante, el diagrama de cajas por mes nos permite también valorar la presencia de estacionalidad.
 
@@ -152,7 +152,7 @@ energy_source_df$mes <- factor(energy_source_df$mes,
 
 # Ordenamos los meses para que los represente por orden temporal
 
-boxplot(energy_source_df$gen.MWh ~ energy_source_df$mes, xlab = "Tiempo / años", ylab = "Generación de energía / MWh", main = energy_source_label)
+boxplot(energy_source_df$gen.MWh ~ energy_source_df$mes, xlab = "Mes", ylab = "Generación de energía / MWh", main = energy_source_label)
 ```
 
 Una gráfica estacional es similar a una gráfica temporal, excepto que los datos se dibujan contra las “estaciones” individuales en las que se observaron los datos. A continuación se ofrece un ejemplo:
@@ -168,13 +168,16 @@ ggseasonplot(energy_source_ts, year.labels = TRUE, year.labels.left = TRUE) +
 
 ## Análisis de la serie mediante suavizado exponencial
 
-Dadas las características de la serie temporal: solo presenta estacionalidad, el método adecuado para su análisis es el método de Holt-Winters.
+Dadas las características de la serie temporal (solo presenta estacionalidad) el método adecuado para su análisis es el de Holt-Winters (ya que este podría tratar una posible tendencia difícil de observar a simple vista, sirviendo de generalización.)
 
-Vamos a empezar analizando la serie con el método de Holt-Winters aditivo pues, a partir del gráfico temporal, se observa una carencia de estacionalidad. No obstante, analizaremos también la serie con el método de Holt-Winters multiplicativo y la serie transformada (utilizando la transformación logarítmica) con Holt-Winters aditivo. Esto nos permitirá comparar los resdultados con otros tipo s de enrgía que sí presenten tendencia.
+Compararemos los resultados obtenidos a partir del método Holt-Winters aditivo, Holt-Winters multiplicativo, así como del Holt-Winters aditivo pero aplicado a la serie transformada (con logaritmo).
 
-Utilizamos los datos hasta diciembre de 2021 para el ajuste y reservamos las observaciones de 2022 para valorar la capacidad predictiva del método seleccionado. La predicción para el año 2022 la realizaremos utilizando el método que nos proporciones un mejor ajuste.
 
-## Holt-Winters aditivo
+Utilizamos los datos hasta diciembre de 2020 para el ajuste y reservamos las observaciones de 2021 para valorar la capacidad predictiva del método seleccionado. La predicción para el año 2021 la realizaremos utilizando el método que nos proporcione un mejor ajuste.
+
+### Holt-Winters aditivo
+
+Este método aditivo agrega el factor de estacionalidad a la previsión con tendencia, tal y como se vio en clase.
 
 ```{r}
 insample <- window(energy_source_ts, start = c(2012,1), end = c(2020,12))
@@ -201,7 +204,9 @@ rmse_add <- sqrt(mean( (insamplecut - fitval_add[,1]) ^ 2 ))
 mape_add <- 100 * mean( abs(insamplecut - fitval_add[,1]) / insamplecut )
 ```
 
-## Holt-Winters multiplicativo
+### Holt-Winters multiplicativo
+
+En este caso el factor de estacionalidad aparece multiplicando a la previsión con tendencia: de ahí el nombre del método.
 
 ```{r}
 energy_source_HW_mult <- HoltWinters(insample, seasonal = "multiplicative")
@@ -220,7 +225,9 @@ rmse_mult <- sqrt(mean( (insamplecut - fitval_mult[,1]) ^ 2 ))
 mape_mult <- 100*mean( abs(insamplecut - fitval_mult[,1]) / insamplecut )
 ```
 
-## Holt-Winters aditivo aplicado a la serie transformada
+### Holt-Winters aditivo aplicado a la serie transformada
+
+Una alternativa al método multiplicativo consiste en realizar previamente una transformación logarítmica a los datos. La serie logarítmica se analiza con el método de Holt-Winters aditivo. A las predicciones obtenidas se les aplica una transformación exponencial para regresar a las unidades originales.
 
 ```{r}
 loginsample <- log(insample) 
@@ -243,57 +250,73 @@ fitval_ori <- exp(fitval_log[,1])
 rmse_log <- sqrt(mean( (insamplecut - fitval_ori) ^ 2 ))
 mape_log <- 100*mean( abs(insamplecut - fitval_ori) / insamplecut )
 ```
+### Construcción de la Tabla de resultados obtenidos con los distintos métodos
+
 ```{r}
 error_ajuste <- matrix(c(rmse_add, mape_add, rmse_mult, mape_mult, rmse_log, mape_log), nrow = 3, byrow = TRUE)
-rownames(error_ajuste) <- c("add", "mult", "mult.log")
-colnames(error_ajuste) <- c("rmse", "mape")
-kable(error_ajuste)
+rownames(error_ajuste) <- c("Aditivo", "Multiplicativo", "Log-Aditivo")
+colnames(error_ajuste) <- c("RMSE / $", "MAPE / %")
+kable(error_ajuste, caption = "Tabla 1. Resultados obtenidos con los distintos métodos de suavizado", align = "c")
 ```
-Como podemos observar, el RMSE es más pequeño en el caso multiplicativo, pero el MAPE es más pequeño en el caso logarítmico aditivo. Dado que la serei temporal carece de heterocedasticidad, el método que usaremos para realizar la predicción del año 2022 será el Holt-Winters con estacionalidad multiplicativa.
+
+
+
+Como podemos observar, el RMSE es más pequeño en el caso multiplicativo, pero el MAPE es ligeramente menor en el caso logarítmico aditivo. Dado que la serie temporal admitimos que carece de heterocedasticidad, el método que usaremos para realizar la predicción del año 2021 será el Holt-Winters con estacionalidad **multiplicativa**.
+
+### Selección del mejor método para realizar la predicción
+
+El método escogido es el Holt-Winters multiplicativo por lo que se comentó anteriormente.
 
 ```{r}
 # Elegimos el HW a usar
 energy_source_HW <- energy_source_HW_mult
 
 pred <- predict(energy_source_HW, 12)
+
 # Valoramos la capacidad predictiva del método
 rmse_pred <- sqrt(mean( (outsample - pred) ^ 2 ))
 mape_pred <- 100 * mean( abs(outsample - pred) / outsample )
 
-cat("Predicción para 2022:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
+cat("Predicción para 2021:\nRMSE:", rmse_pred, "$", "\nMAPE:", mape_pred, "%", "\n")
 
 # pred contiene las predicciones puntuales para los 12 meses de 2022
 ts.plot(insample, pred, lty = 1:2,
         gpars = list(xlab = x_label, ylab = y_label,
-                     main = paste("Predicción para el año 2022:\n", energy_source_label)))
-legend("topleft", legend = c("Datos 2012-2020", "Predicción 2022"),
+                     main = paste("Predicción para el año 2021:\n", energy_source_label)))
+legend("topleft", legend = c("Datos 2012-2020", "Predicción 2021"),
        lty = c(1, 2))
 ```
+
 Podemos también representar gráficamente los valores reales de 2022 que habíamos reservado junto con la predicción puntual:
 
 ```{r}
-plot(pred, col = "red", xaxt = "n", xlab = "Año 2022", ylab = y_label,
-     main = paste("Datos y predicción del año 2022:\n", energy_source_label))
+plot(pred, col = "red", xaxt = "n", xlab = "Año 2021", ylab = y_label,
+     main = paste("Datos y predicción del año 2021:\n", energy_source_label))
 points(outsample, pch = 19)
 legend("topleft", legend = c("Predicción Holt Winters", "Datos reales"),
        col = c("red", "black"), pch = c(NA, 19), lty = c(1, 0))
 ```
+Podemos observar cómo nuestra predicción queda muy cerca de todos los datos reales, dando por satisfactorio nuestro resultado obtenido.
 
-y calcular el intervalo de predicción al 95\%:
+Así mismo, es posible determinar el intervalo de predicción al 95\% en nuestro modelo, tal y como se muestra en la siguiente Figura.
 
 ```{r}
 pred <- predict(energy_source_HW, n.ahead = 12, prediction.interval = TRUE, level = 0.95) 
 plot(energy_source_HW, pred, xlab = x_label, ylab = y_label,
-     main = paste("Intervalo de predicción al 95% para el año 2022:\n", energy_source_label))
+     main = paste("Intervalo de predicción al 95% para el año 2021:\n", energy_source_label))
 legend("topleft", legend = c("Datos 2012-2021", "Predicción completa", "Confianza 95%"),
        col = c("black", "red", "blue"), lty = 1)
 ```
 
 ## Análisis de la serie mediante la metodología Box-Jenkins
 
-Dadas las características de la serie temporal: solo presenta estacionalidad, el primer paso del análisis es determinar la transformación estacionaria de la serie.
+Con la metodología Box-Jenkins la idea es describir el valor observado en un período *t* como una función lineal de valores anteriores y errores debidos al azar.
 
-Calculamos una diferencia estacional ($D = 1$):
+### Transformación estacionaria de la serie
+
+El primer paso en esta metodología es determinar la transformación estacionaria de la serie.
+
+En primera instancia, calculamos una diferencia estacional ($D = 1$):
 
 ```{r}
 d12insample <- diff(insample, 12)
@@ -301,7 +324,9 @@ plot(d12insample, xlab = x_label, ylab = y_label,
      main = paste("Serie diferenciada con D = 1:\n", energy_source_label))
 ```
 
-Parece que hemos quitado la estacionalidad. A simple vista, como ya hemos comentado, parece que no existe tendencia en nuestra serie, pero para asegurar un correcto análisis de los datos diferenciaremos una segunda vez. En caso de que esta segunda diferenciación no fuese necesario, se haría evidente a la hora de utilizar los modelos predictivos. Calculamos pues una diferencia regular ($d = 1$):
+Parece que hemos quitado la estacionalidad. A simple vista, como ya hemos comentado, parece que no existe tendencia en nuestra serie, pero para asegurar un correcto análisis de los datos diferenciaremos una segunda vez. En caso de que esta segunda diferenciación no fuese necesaria se haría evidente a la hora de utilizar los modelos predictivos. 
+
+Calculamos pues una diferencia regular ($d = 1$):
 
 ```{r}
 dd12insample <- diff(d12insample)
@@ -309,11 +334,23 @@ plot(dd12insample, xlab = x_label, ylab = y_label,
      main = paste("Serie diferenciada con D = 1 y d = 1:\n", energy_source_label))
 ```
 
-Podemos asumir que la serie diferenciada con $d = 1$ y $D = 1$ ya es estacionaria. Pasamos a examinar el correlograma y el correlograma parcial:
+Podemos asumir que la serie diferenciada con $d = 1$ y $D = 1$ ya es estacionaria. 
+
+### Identificación de un modelo basado en análisis de autocorrelaciones y autocorrelaciones parciales
+
+Pasamos a examinar el correlograma y el correlograma parcial:
 
 ```{r}
-acf(dd12insample,lag.max=50)
-pacf(dd12insample,lag.max=50)
+acf_result <- acf(dd12insample,lag.max = 50, plot = FALSE)
+
+plot(acf_result)
+custom_xticks <- seq(0, 5, by = 0.5)
+axis(1, at = custom_xticks, labels = custom_xticks)
+
+pacf_result <- pacf(dd12insample,lag.max = 50, plot = FALSE)
+plot(pacf_result)
+custom_xticks <- seq(0, 5, by = 0.5)
+axis(1, at = custom_xticks, labels = custom_xticks)
 ```
 Si nos fijamos en los primeros retardos, podemos pensar:
 
@@ -323,61 +360,69 @@ Si nos fijamos en los primeros retardos, podemos pensar:
 
 * Interpretamos de la misma forma las funciones que en el anterior punto pero no diferenciamos la serie: (p,d,q) = (1,0,2)
 
-* Utilizamos la función <code>auto.arima</code> para comparar nuestros modelos, dieseñados observando las funciones de autocorrelación, con el que se supone qu eoptimiza la predicción.
+* Utilizamos la función <code>auto.arima</code> para comparar nuestros modelos, diseñados observando las funciones de autocorrelación, con el que se supone que optimiza la predicción.
 
-Si nos fijamos en los retardos estacionales (Lag = 1, 2, 3, 4 ciclos estacionales), podemos pensar:
+Por otra parte, si nos fijamos en los retardos estacionales (Lag = 1, 2, 3, 4 ciclos estacionales), podemos pensar:
 
-* La función de autocorrelación tiene el primer coeficiente significativo, mientras que la función de autocorrelación parcial muestra decrecimiento: (P,D,Q) = (0,1,1)
+* La función de autocorrelación muestra decrecimiento, mientras que la función de autocorrelación parcial podemos considerar que tiene el primer coeficiente significativo: (P,D,Q) = (0,1,1)
 
-* La función de autocorrelación tiene los dos primeros coeficientes significativos, mientras que la función de autocorrelación parcial muestra decrecimiento: (P,D,Q) = (0,1,2)
+* La función de autocorrelación muestra decrecimiento, mientras que la de autocorrelación parcial tiene los dos primeros coeficientes significativos: (P,D,Q) = (0,1,2)
 
 Veamos el ajuste proporcionado por los distintos modelos:
 
+**Modelo 1.**
+
 ```{r}
-print("Modelo 1")
 source_energy_model_1 <- arima(insample, order = c(2,1,2), seasonal = list(order=c(0,1,2), period=12))
 source_energy_model_1
-cat("\n")
-print("Modelo 1: p values")
+
+#Modelo 1: p values
+
 source_energy_model_1s <- sarima(dd12insample,2,1,2,0,1,2,12, details = FALSE)
 source_energy_model_1s$ttable
+```
 
-cat("\n")
-print("Modelo 2")
+**Modelo 2.**
+
+```{r}
 source_energy_model_2 <- arima(insample, order = c(1,1,2), seasonal = list(order = c(0,1,1), period=12))
 source_energy_model_2
-cat("\n")
-print("Modelo 2: p values")
+
+#Modelo 2: p values
 source_energy_model_2s <- sarima(dd12insample,1,1,2,0,1,1,12, details = FALSE)
 source_energy_model_2s$ttable
+```
 
-cat("\n")
-print("Modelo 3")
+**Modelo 3.**
+
+```{r}
 source_energy_model_3 <- arima(insample, order = c(1,0,2), seasonal = list(order = c(0,1,1), period = 12))
 source_energy_model_3
-cat("\n")
-print("Modelo 3: p values")
+
+#Modelo 3: p values
 source_energy_model_3s <- sarima(dd12insample,1,0,2,0,1,1,12, details = FALSE)
 source_energy_model_3s$ttable
+```
 
-cat("\n")
-print("Auto ARIMA")
+**Modelo predicho por Auto-Arima.**
+
+```{r}
 source_energy_model_auto <- auto.arima(insample)
 source_energy_model_auto
 ```
 
-El modelo de menor AIC es (p,d,q)(P,D,Q) = (1,1,2)(0,1,1), que no coincide con el modelo proporcionado por la función <code>auto.arima</code>. Los estadísticos relacionados con el modelo son:
+El modelo de menor AIC (con p-values aceptables menores a 0.05) es (p,d,q)(P,D,Q) = (1,1,2)(0,1,1), que no coincide con el modelo proporcionado por la función <code>auto.arima</code>. 
+
+Los estadísticos relacionados con el modelo 2 son:
 
 ```{r, echo = FALSE}
 accuracy(source_energy_model_2)
 ```
 
-
-En este caso, seleccionamos el modelo número dos porque tiene el segundo AIC más bajo y los mejores p-values. La ecuación del modelo es: 
-
+La ecuación del modelo 2 queda como: 
 
 $$
-(1- 0.5579B)(1-0. 0.5579B^{12})(1 - B) (1 - B^{12}) x_t = (1 -1.1140B + 0.1140B^{2}) (1 -  B^{12})\epsilon_t
+(1- 0.5579B)(1-0.5579B^{12})(1 - B) (1 - B^{12}) x_t = (1 -1.1140B + 0.1140B^{2}) (1 -  B^{12})\epsilon_t
 $$
 
 Veamos a continuación la representación gráfica del ajuste obtenido. Línea negra: valores reales, línea roja: valores ajustados. 
@@ -398,7 +443,7 @@ Antes de pasar a la predicción, comprobamos que el modelo es válido. Como mues
 checkresiduals(source_energy_model, plot=TRUE)
 ```
 
-La predicción obtenida para los 12 meses de 2022 junto con el error de predicción vienen dados por:
+La predicción obtenida para los 12 meses de 2021 junto con el error de predicción vienen dados por:
 
 ```{r}
 pred <- forecast(source_energy_model, h = 12)$mean
@@ -416,18 +461,27 @@ cat("Predicción para 2022:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
 Finalmente, representamos gráficamente los valores reales de 2022 que habíamos reservado junto con la predicción puntual:
 
 ```{r}
-plot(pred, col="red",xaxt="n", xlab = x_label, ylab = y_label,
-     main = paste("Datos y predicción ARIMA para el año 2022:\n", energy_source_label))
+plot(pred, col="red",xaxt="n", xlab = "Año 2021", ylab = y_label,
+     main = paste("Datos y predicción sARIMA para el año 2021:\n", energy_source_label))
 points(outsample,pch=19)
-legend("topleft", legend = c("Predicción ARIMA", "Datos reales"),
+legend("topleft", legend = c("Predicción sARIMA", "Datos reales"),
        col = c("red", "black"), pch = c(NA, 19), lty = c(1, 0))
 ```
 
-Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters multiplicativo y, por tanto, como predicción para el año 2022 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2022 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).
+En la siguiente Tabla se recogen los errores RMSE y MAPE de suavizado exponencial con Holt-Winters y con el modelo de sARIMA.
+
+```{r}
+tabla_comparacion <- matrix(c(16904653, 1.959043, 15817957, 1.8845), nrow = 2, byrow = TRUE)
+rownames(tabla_comparacion) <- c("Holt-Winters (multiplicativo)", "sARIMA")
+colnames(tabla_comparacion) <- c("RMSE / $", "MAPE / %")
+kable(tabla_comparacion, caption = "Tabla 2. Comparación entre modelo de Holt-Winters y de sARIMA", align = "c")
+```
+
+Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters multiplicativo y, por tanto, como predicción para el año 2021 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2021 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).
 
 # Solar
 
-Repetimos para la energía solar, que tiene tendencia y heterocedasticidad además de estacionalidad.
+Repetimos para la energía solar, que tiene tendencia y heterocedasticidad, además de estacionalidad.
 
 ```{r}
 sel_energia <- "Solar Thermal and Photovoltaic"
@@ -503,11 +557,13 @@ ggseasonplot(energy_source_ts, year.labels = TRUE, year.labels.left = TRUE) +
 
 Dadas las características de la serie temporal: tendencia, estacionalidad y heterocedasticidad; el método adecuado para su análisis es el método de Holt-Winters.
 
-Vamos a empezar analizando la serie con el método de Holt-Winters aditivo pues, a partir del gráfico temporal, podríamos asumir que el efecto de la estacionalidad es multiplicativo (parece aumentar con el nivel). No obstante, analizaremos también la serie con el método de Holt-Winters aditivo y la serie transformada (utilizando la transformación logarítmica) con Holt-Winters aditivo. 
+Compararemos los resultados obtenidos a partir del método Holt-Winters aditivo, Holt-Winters multiplicativo, así como del Holt-Winters aditivo pero aplicado a la serie transformada (con logaritmo).
 
-Utilizamos los datos hasta diciembre de 2021 para el ajuste y reservamos las observaciones de 2022 para valorar la capacidad predictiva del método seleccionado. La predicción para el año 2022 la realizaremos utilizando el método que nos proporciones un mejor ajuste.
+Utilizamos los datos hasta diciembre de 2020 para el ajuste y reservamos las observaciones de 2021 para valorar la capacidad predictiva del método seleccionado. La predicción para el año 2021 la realizaremos utilizando el método que nos proporciones un mejor ajuste.
 
-## Holt-Winters aditivo
+### Holt-Winters aditivo
+
+Este método aditivo agrega el factor de estacionalidad a la previsión con tendencia, tal y como se vio en clase.
 
 ```{r}
 insample <- window(energy_source_ts, start = c(2012,1), end = c(2020,12))
@@ -534,7 +590,9 @@ rmse_add <- sqrt(mean( (insamplecut - fitval_add[,1]) ^ 2 ))
 mape_add <- 100 * mean( abs(insamplecut - fitval_add[,1]) / insamplecut )
 ```
 
-## Holt-Winters multiplicativo
+### Holt-Winters multiplicativo
+
+En este caso el factor de estacionalidad aparece multiplicando a la previsión con tendencia: de ahí el nombre del método.
 
 ```{r}
 energy_source_HW_mult <- HoltWinters(insample, seasonal = "multiplicative")
@@ -553,7 +611,9 @@ rmse_mult <- sqrt(mean( (insamplecut - fitval_mult[,1]) ^ 2 ))
 mape_mult <- 100*mean( abs(insamplecut - fitval_mult[,1]) / insamplecut )
 ```
 
-## Holt-Winters aditivo aplicado a la serie transformada
+### Holt-Winters aditivo aplicado a la serie transformada
+
+Una alternativa al método multiplicativo consiste en realizar previamente una transformación logarítmica a los datos. La serie logarítmica se analiza con el método de Holt-Winters aditivo. A las predicciones obtenidas se les aplica una transformación exponencial para regresar a las unidades originales.
 
 ```{r}
 loginsample <- log(insample) 
@@ -576,15 +636,20 @@ fitval_ori <- exp(fitval_log[,1])
 rmse_log <- sqrt(mean( (insamplecut - fitval_ori) ^ 2 ))
 mape_log <- 100*mean( abs(insamplecut - fitval_ori) / insamplecut )
 ```
+### Construcción de la Tabla de resultados obtenidos con los distintos métodos
 
 ```{r}
 error_ajuste <- matrix(c(rmse_add, mape_add, rmse_mult, mape_mult, rmse_log, mape_log), nrow = 3, byrow = TRUE)
-rownames(error_ajuste) <- c("add", "mult", "mult.log")
-colnames(error_ajuste) <- c("rmse", "mape")
-kable(error_ajuste, align = 'c')
+rownames(error_ajuste) <- c("Aditivo", "Multiplicativo", "Log-Aditivo")
+colnames(error_ajuste) <- c("RMSE / $", "MAPE / %")
+kable(error_ajuste, caption = "Tabla 3. Resultados obtenidos con los distintos métodos de suavizado", align = "c")
 ```
 
-El método con menor error de ajuste (tanto RMSE como MAPE) es Holt-Winters con estacionalidad multiplicativa. Este será, por tanto, el método utilizado para calcular la predicción para el año 2022. 
+El método con menor error de ajuste (tanto RMSE como MAPE) es Holt-Winters con estacionalidad multiplicativa. Este será, por tanto, el método utilizado para calcular la predicción para el año 2021. 
+
+### Selección del mejor método para realizar la predicción
+
+El método escogido es el Holt-Winters multiplicativo por lo que se comentó anteriormente.
 
 ```{r}
 # Elegimos el HW a usar
@@ -595,41 +660,44 @@ pred <- predict(energy_source_HW, 12)
 rmse_pred <- sqrt(mean( (outsample - pred) ^ 2 ))
 mape_pred <- 100 * mean( abs(outsample - pred) / outsample )
 
-cat("Predicción para 2022:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
+cat("Predicción para 2021:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
 
 # pred contiene las predicciones puntuales para los 12 meses de 2021
 ts.plot(insample, pred, lty = 1:2,
         gpars = list(xlab = x_label, ylab = y_label,
-                     main = paste("Predicción para el año 2022:\n", energy_source_label)))
-legend("topleft", legend = c("Datos 2012-2021", "Predicción 2022"),
+                     main = paste("Predicción para el año 2021:\n", energy_source_label)))
+legend("topleft", legend = c("Datos 2012-2020", "Predicción 2021"),
        lty = c(1, 2))
 ```
 
 Podemos también representar gráficamente los valores reales de 2022 que habíamos reservado junto con la predicción puntual:
 
 ```{r}
-plot(pred, col = "red", xaxt = "n", xlab = "Año 2022", ylab = y_label,
-     main = paste("Datos y predicción del año 2022:\n", energy_source_label))
+plot(pred, col = "red", xaxt = "n", xlab = "Año 2021", ylab = y_label,
+     main = paste("Datos y predicción del año 2021:\n", energy_source_label))
 points(outsample, pch = 19)
 legend("topleft", legend = c("Predicción Holt Winters", "Datos reales"),
        col = c("red", "black"), pch = c(NA, 19), lty = c(1, 0))
 ```
+De nuevo, al igual que en el caso de la energía total, los puntos reales no distan demasiado a simple vista de lo que ofrece nuestra predicción Holt-Winters.
 
-y calcular el intervalo de predicción al 95\%:
+Así mismo, es posible determinar el intervalo de predicción al 95\% en nuestro modelo, como se muestra en la siguiente Figura.
 
 ```{r}
 pred <- predict(energy_source_HW, n.ahead = 12, prediction.interval = TRUE, level = 0.95) 
 plot(energy_source_HW, pred, xlab = x_label, ylab = y_label,
-     main = paste("Intervalo de predicción al 95% para el año 2022:\n", energy_source_label))
-legend("topleft", legend = c("Datos 2012-2021", "Predicción completa", "Confianza 95%"),
+     main = paste("Intervalo de predicción al 95% para el año 2021:\n", energy_source_label))
+legend("topleft", legend = c("Datos 2012-2020", "Predicción completa", "Confianza 95%"),
        col = c("black", "red", "blue"), lty = 1)
 ```
 
 ## Análisis de la serie mediante la metodología Box-Jenkins
 
-Dadas las características de la serie temporal: tendencia, estacionalidad y heterocedasticidad, el primer paso del análisis es determinar la transformación estacionaria de la serie.
+Con la metodología Box-Jenkins la idea es describir el valor observado en un período t como una función lineal de valores anteriores y errores debidos al azar.
 
-Primero realizamos la transformación a la serie logarítmica:
+### Transformación estacionaria de la serie
+
+Con objetivo de quitar la heterocedasticidad aplicamos la función logaritmo primeramente.
 
 ```{r}
 loginsample <- log(insample)
@@ -637,7 +705,9 @@ plot(loginsample, xlab = x_label, ylab = y_label_log,
      main = paste("Serie logarítmica:\n", energy_source_label))
 ```
 
-Hemos conseguido eliminar la heterocedasticidad. Calculamos una diferencia estacional ($D = 1$):
+Hemos conseguido eliminar la heterocedasticidad a la vista de lo obtenido.
+
+Ahora,se procede a calcular una diferencia estacional ($D = 1$):
 
 ```{r}
 d12insample <- diff(loginsample, 12)
@@ -645,7 +715,9 @@ plot(d12insample, xlab = x_label, ylab = y_label_log,
      main = paste("Serie logarítmica diferenciada con D = 1:\n", energy_source_label))
 ```
 
-Diferenciando no conseguimos eliminar la estacionalidad. Probamos pues a calcular una diferencia regular ($d = 1$):
+Diferenciando no parece que hayamos conseguido eliminar la estacionalidad plenamente. 
+
+Probamos ahora la diferencia regular ($d = 1$):
 
 ```{r}
 dd12insample <- diff(d12insample)
@@ -653,11 +725,23 @@ plot(dd12insample, xlab = x_label, ylab = y_label_log,
      main = paste("Serie logarítmica diferenciada con D = 1 y d = 1:\n", energy_source_label))
 ```
 
-Podemos asumir que la serie logarítmica diferenciada con $d = 1$ y $D = 1$ ya es estacionaria. Pasamos a examinar el correlograma y el correlograma parcial:
+Podemos asumir que la serie logarítmica diferenciada con $d = 1$ y $D = 1$ ya es estacionaria para proseguir con nuestro análisis más detallado. 
+
+### Identificación de un modelo basado en análisis de autocorrelaciones y autocorrelaciones parciales
+
+Pasamos a examinar el correlograma y el correlograma parcial:
 
 ```{r}
-acf(dd12insample,lag.max=50)
-pacf(dd12insample,lag.max=50)
+acf_result <- acf(dd12insample,lag.max = 50, plot = FALSE)
+
+plot(acf_result)
+custom_xticks <- seq(0, 5, by = 0.5)
+axis(1, at = custom_xticks, labels = custom_xticks)
+
+pacf_result <- pacf(dd12insample,lag.max = 50, plot = FALSE)
+plot(pacf_result)
+custom_xticks <- seq(0, 5, by = 0.5)
+axis(1, at = custom_xticks, labels = custom_xticks)
 ```
 
 Si nos fijamos en los primeros retardos, podemos pensar:
@@ -668,26 +752,32 @@ Si nos fijamos en los primeros retardos, podemos pensar:
 
 Si nos fijamos en los retardos estacionales (Lag = 1, 2, 3, 4 ciclos estacionales), podemos pensar:
 
-* La función de autocorrelación tiene el primer coeficiente significativo, mientras que la función de autocorrelación parcial muestra decrecimiento: (P,D,Q) = (0,1,1)
+* La función de autocorrelación parcial tiene el primer coeficiente significativo, mientras que la función de autocorrelación muestra decrecimiento: (P,D,Q) = (0,1,1)
 
 Veamos el ajuste proporcionado por los distintos modelos:
 
+**Modelo 1.**
+
 ```{r}
-print("Modelo 1")
 source_energy_model_1 <- arima(loginsample, order = c(0,1,0), seasonal = list(order=c(0,1,1), period=12))
 source_energy_model_1
-print("Modelo 1: p values")
+#Modelo 1: p values
 source_energy_model_1s <- sarima(loginsample,0,1,0,0,1,1,12, details = FALSE)
 source_energy_model_1s$ttable
+```
 
-print("Modelo 2")
+**Modelo 2.**
+```{r}
 source_energy_model_2 <- arima(loginsample, order = c(1,1,1), seasonal = list(order = c(0,1,1), period=12))
 source_energy_model_2
-print("Modelo 2: p values")
+#Modelo 2: p values
 source_energy_model_2s <- sarima(loginsample,1,1,1,0,1,1,12, details = FALSE)
 source_energy_model_2s$ttable
+```
 
-print("Auto ARIMA")
+**Modelo predicho por Auto-Arima**
+
+```{r}
 source_energy_model_auto <- auto.arima(loginsample)
 source_energy_model_auto
 ```
@@ -725,7 +815,7 @@ Antes de pasar a la predicción, comprobamos que el modelo es válido. Como mues
 checkresiduals(source_energy_model, plot=TRUE)
 ```
 
-La predicción obtenida para los 12 meses de 2022 junto con el error de predicción vienen dados por:
+La predicción obtenida para los 12 meses de 2021 junto con el error de predicción vienen dados por:
 
 ```{r}
 logoutsample <- log(outsample)
@@ -734,19 +824,19 @@ pred <- forecast(source_energy_model, h = 12)$mean
 pred # Predicción puntual
 
 plot(forecast(source_energy_model,h=12), xlab = x_label, ylab = y_label_log,
-     main = paste("Intervalos de confianza de ARIMA para 2022:\n", energy_source_label))
+     main = paste("Intervalos de confianza de ARIMA para 2021:\n", energy_source_label))
 
 rmse_pred <- sqrt(mean((logoutsample-pred)^2))
 mape_pred <- 100*mean(abs(logoutsample-pred)/logoutsample)
 
-cat("Predicción para 2022:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
+cat("Predicción para 2021:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
 ```
 
-Finalmente, representamos gráficamente los valores reales de 2022 que habíamos reservado junto con la predicción puntual:
+Finalmente, representamos gráficamente los valores reales de 2021 que habíamos reservado junto con la predicción puntual:
 
 ```{r}
-plot(pred, col="red",xaxt="n", xlab = x_label, ylab = y_label_log,
-     main = paste("Datos y predicción ARIMA para el año 2022:\n", energy_source_label))
+plot(pred, col="red",xaxt="n", xlab = "Año 2021", ylab = y_label_log,
+     main = paste("Datos y predicción ARIMA para el año 2021 (logaritmo):\n", energy_source_label))
 points(logoutsample,pch=19)
 legend("topleft", legend = c("Predicción ARIMA", "Datos reales"),
        col = c("red", "black"), pch = c(NA, 19), lty = c(1, 0))
@@ -755,12 +845,29 @@ legend("topleft", legend = c("Predicción ARIMA", "Datos reales"),
 Podemos recuperar la serie original y la predicción correspondiente deshaciendo la conversión logarítmica:
 
 ```{r}
-plot(exp(pred), col="red",xaxt="n", xlab = x_label, ylab = y_label,
-     main = paste("Datos y predicción ARIMA para el año 2022:\n", energy_source_label))
+plot(exp(pred), col="red",xaxt="n", xlab = "Año 2021", ylab = y_label,
+     main = paste("Datos y predicción ARIMA para el año 2021:\n", energy_source_label))
 points(outsample,pch=19)
 legend("topleft", legend = c("Predicción ARIMA", "Datos reales"),
        col = c("red", "black"), pch = c(NA, 19), lty = c(1, 0))
 ```
+```{r}
+# Cálculo de RMSE y MAPE para la serie original
 
-Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters aditivo y, por tanto, como predicción para el año 2022 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2022 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).
+rmse_pred <- sqrt(mean((outsample-exp(pred)^2)))
+mape_pred <- 100*mean(abs(outsample-exp(pred))/outsample)
+
+
+```
+
+En la siguiente Tabla se recogen el MAPE de suavizado exponencial con Holt-Winters y con el modelo de sARIMA:
+
+```{r}
+tabla_comparacion <- matrix(c(6.170981, 5.915143), nrow = 2, byrow = TRUE)
+rownames(tabla_comparacion) <- c("Holt-Winters (multiplicativo)", "sARIMA")
+colnames(tabla_comparacion) <- c( "MAPE / %")
+kable(tabla_comparacion, caption = "Tabla 4. Comparación entre modelo de Holt-Winters y de sARIMA", align = "c")
+```
+
+Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters aditivo y, por tanto, como predicción para el año 2021 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2021 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).
 
