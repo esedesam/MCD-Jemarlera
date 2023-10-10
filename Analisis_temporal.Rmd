@@ -1,9 +1,15 @@
 ---
-title: \vspace{5cm} Análisis de una serie temporal
-subtitle: US Energy Generation
-
+title: "\vspace{5cm} Análisis de una serie temporal"
 author: "Jesús Martínez Leal, Samuel Ortega Mediavilla & Pablo Vicente Martínez"
-
+subtitle: US Energy Generation
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    df_print: paged
+    toc: yes
+    citation_package: natbib
+    number_sections: yes
 include-before:
 - \usepackage[spanish]{babel}
 - \usepackage[utf8]{inputenc}
@@ -12,13 +18,6 @@ include-before:
 - \usepackage{xcolor}
 - \usepackage{graphicx}
 - \usepackage{eqnarray}
-output:
-  html_document:
-    df_print: paged
-    toc: yes
-    citation_package: natbib
-    number_sections: yes
-    
 fontsize: 12pt
 ---
 
@@ -38,7 +37,7 @@ library(ggplot2)
 library(dplyr)
 library(astsa)
 library(knitr)
-setwd("D:/CDC-Jemarlera") # TENEIS QUE SETEAR EL WD
+#setwd("D:/CDC-Jemarlera") # TENEIS QUE SETEAR EL WD
 ```
 
 Seteamos algunas constantes útiles, en este caso, las etiquetas de los ejes de las representaciones gráficas van a ser constantes en la mayoría de gráficos.
@@ -139,7 +138,7 @@ autoplot(energy_source_ts, xlab = "Tiempo / años", ylab = "Generación de energ
   theme_light()
 ```
 
-A partir del gráfico temporal podemos apreciar una cierta evolución en el largo plazo (*tendencia*): durante los primeros cuatro años se observa una tendencia decreciente. A partir de 2014, la serie temporal toma valores cada vez mayores, es decir, la serie presenta una tendencia creciente. Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con una mayor generación de eenrgía durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
+A partir del gráfico temporal podemos apreciar carencia de (*tendencia*): la energía total no presenta ni un aevolución al alza o a la baja a lo largo del tiempo. Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con una mayor generación de enrgía durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
 
 En este ejemplo, la estacionalidad de la serie se observa claramente en el gráfico temporal. No obstante, el diagrama de cajas por mes nos permite también valorar la presencia de estacionalidad.
 
@@ -157,8 +156,10 @@ boxplot(energy_source_df$gen.MWh ~ energy_source_df$mes, xlab = "Tiempo / años"
 ```
 
 Una gráfica estacional es similar a una gráfica temporal, excepto que los datos se dibujan contra las “estaciones” individuales en las que se observaron los datos. A continuación se ofrece un ejemplo:
+
 ```{r}
 ggseasonplot(energy_source_ts, year.labels = TRUE, year.labels.left = TRUE) +
+  xlab("Mes")+
   ylab("Generación de energía / MWh") +
   ggtitle(paste("Seasonal plot:", energy_source_label)) + 
   theme_light()
@@ -167,9 +168,9 @@ ggseasonplot(energy_source_ts, year.labels = TRUE, year.labels.left = TRUE) +
 
 ## Análisis de la serie mediante suavizado exponencial
 
-Dadas las características de la serie temporal: tendencia y estacionalidad, el método adecuado para su análisis es el método de Holt-Winters.
+Dadas las características de la serie temporal: solo presenta estacionalidad, el método adecuado para su análisis es el método de Holt-Winters.
 
-Vamos a empezar analizando la serie con el método de Holt-Winters aditivo pues, a partir del gráfico temporal, podríamos asumir que el efecto de la estacionalidad es multiplicativo (parece aumentar con el nivel). No obstante, analizaremos también la serie con el método de Holt-Winters aditivo y la serie transformada (utilizando la transformación logarítmica) con Holt-Winters aditivo. 
+Vamos a empezar analizando la serie con el método de Holt-Winters aditivo pues, a partir del gráfico temporal, se observa una carencia de estacionalidad. No obstante, analizaremos también la serie con el método de Holt-Winters multiplicativo y la serie transformada (utilizando la transformación logarítmica) con Holt-Winters aditivo. Esto nos permitirá comparar los resdultados con otros tipo s de enrgía que sí presenten tendencia.
 
 Utilizamos los datos hasta diciembre de 2021 para el ajuste y reservamos las observaciones de 2022 para valorar la capacidad predictiva del método seleccionado. La predicción para el año 2022 la realizaremos utilizando el método que nos proporciones un mejor ajuste.
 
@@ -248,10 +249,7 @@ rownames(error_ajuste) <- c("add", "mult", "mult.log")
 colnames(error_ajuste) <- c("rmse", "mape")
 kable(error_ajuste)
 ```
-
-REESCRIBIR RMSE MAS PEQUEÑO EN MULT PERO MAPE MAS PEQUEÑO EN LOG NOS QUEDAMOS MULT PORQUE NO HAY HETEROCEDASTICIDAD ASI QUE NO HACE FALTA TRANSFORMAR
-
-El método con menor error de ajuste (tanto RMSE como MAPE) es Holt-Winters con estacionalidad multiplicativa. Este será, por tanto, el método utilizado para calcular la predicción para el año 2022. 
+Como podemos observar, el RMSE es más pequeño en el caso multiplicativo, pero el MAPE es más pequeño en el caso logarítmico aditivo. Dado que la serei temporal carece de heterocedasticidad, el método que usaremos para realizar la predicción del año 2022 será el Holt-Winters con estacionalidad multiplicativa.
 
 ```{r}
 # Elegimos el HW a usar
@@ -287,13 +285,13 @@ y calcular el intervalo de predicción al 95\%:
 pred <- predict(energy_source_HW, n.ahead = 12, prediction.interval = TRUE, level = 0.95) 
 plot(energy_source_HW, pred, xlab = x_label, ylab = y_label,
      main = paste("Intervalo de predicción al 95% para el año 2022:\n", energy_source_label))
-legend("topleft", legend = c("Datos 2012-2020", "Predicción completa", "Confianza 95%"),
+legend("topleft", legend = c("Datos 2012-2021", "Predicción completa", "Confianza 95%"),
        col = c("black", "red", "blue"), lty = 1)
 ```
 
 ## Análisis de la serie mediante la metodología Box-Jenkins
 
-Dadas las características de la serie temporal: tendencia y estacionalidad, el primer paso del análisis es determinar la transformación estacionaria de la serie.
+Dadas las características de la serie temporal: solo presenta estacionalidad, el primer paso del análisis es determinar la transformación estacionaria de la serie.
 
 Calculamos una diferencia estacional ($D = 1$):
 
@@ -303,7 +301,7 @@ plot(d12insample, xlab = x_label, ylab = y_label,
      main = paste("Serie diferenciada con D = 1:\n", energy_source_label))
 ```
 
-Parece que hemos quitado la estacionalidad, pero todavía queda la tendencia. Calculamos pues una diferencia regular ($d = 1$): #d = 0 probar
+Parece que hemos quitado la estacionalidad. A simple vista, como ya hemos comentado, parece que no existe tendencia en nuestra serie, pero para asegurar un correcto análisis de los datos diferenciaremos una segunda vez. En caso de que esta segunda diferenciación no fuese necesario, se haría evidente a la hora de utilizar los modelos predictivos. Calculamos pues una diferencia regular ($d = 1$):
 
 ```{r}
 dd12insample <- diff(d12insample)
@@ -317,21 +315,21 @@ Podemos asumir que la serie diferenciada con $d = 1$ y $D = 1$ ya es estacionari
 acf(dd12insample,lag.max=50)
 pacf(dd12insample,lag.max=50)
 ```
-REESCRIBIR MIRANDO LOS PALOS
-
 Si nos fijamos en los primeros retardos, podemos pensar:
 
-* La función de autocorrelación tiene el primer coeficiente significativo, mientras que la función de autocorrelación parcial muestra decrecimiento: (p,d,q) = (0,1,1)
+* La función de autocorrelación tiene dos coeficiente significativos, al igual que la función de autocorrelación parcial: (p,d,q) = (2,1,2)
 
-* La función de autocorrelación decrece y la función de autocorrelación parcial tiene el primer coeficiente significativo: (p,d,q) = (1,1,0)
+* La función de autocorrelación decrece desde el primer máximo y la función de autocorrelación parcial tiene los dos primeros coeficientes significativos: (p,d,q) = (1,1,2)
 
-* Las dos funciones muestran decrecimiento a partir del primer coeficiente: (p,d,q) = (1,1,1)
+* Interpretamos de la misma forma las funciones que en el anterior punto pero no diferenciamos la serie: (p,d,q) = (1,0,2)
+
+* Utilizamos la función <code>auto.arima</code> para comparar nuestros modelos, dieseñados observando las funciones de autocorrelación, con el que se supone qu eoptimiza la predicción.
 
 Si nos fijamos en los retardos estacionales (Lag = 1, 2, 3, 4 ciclos estacionales), podemos pensar:
 
-* No hay ningún coeficiente significativo: (P,D,Q) = (0,1,0)
-
 * La función de autocorrelación tiene el primer coeficiente significativo, mientras que la función de autocorrelación parcial muestra decrecimiento: (P,D,Q) = (0,1,1)
+
+* La función de autocorrelación tiene los dos primeros coeficientes significativos, mientras que la función de autocorrelación parcial muestra decrecimiento: (P,D,Q) = (0,1,2)
 
 Veamos el ajuste proporcionado por los distintos modelos:
 
@@ -339,43 +337,54 @@ Veamos el ajuste proporcionado por los distintos modelos:
 print("Modelo 1")
 source_energy_model_1 <- arima(insample, order = c(2,1,2), seasonal = list(order=c(0,1,2), period=12))
 source_energy_model_1
+cat("\n")
 print("Modelo 1: p values")
 source_energy_model_1s <- sarima(dd12insample,2,1,2,0,1,2,12, details = FALSE)
 source_energy_model_1s$ttable
 
+cat("\n")
 print("Modelo 2")
 source_energy_model_2 <- arima(insample, order = c(1,1,2), seasonal = list(order = c(0,1,1), period=12))
 source_energy_model_2
+cat("\n")
 print("Modelo 2: p values")
 source_energy_model_2s <- sarima(dd12insample,1,1,2,0,1,1,12, details = FALSE)
 source_energy_model_2s$ttable
 
+cat("\n")
 print("Modelo 3")
 source_energy_model_3 <- arima(insample, order = c(1,0,2), seasonal = list(order = c(0,1,1), period = 12))
 source_energy_model_3
+cat("\n")
 print("Modelo 3: p values")
 source_energy_model_3s <- sarima(dd12insample,1,0,2,0,1,1,12, details = FALSE)
 source_energy_model_3s$ttable
 
+cat("\n")
 print("Auto ARIMA")
 source_energy_model_auto <- auto.arima(insample)
 source_energy_model_auto
 ```
 
-El modelo de menor AIC es (p,d,q)(P,D,Q) = (0,1,1)(0,1,1), que coincide con el modelo proporcionado por la función <code>auto.arima</code>. El MAPE asociado a este modelo es 2.4599. La ecuación del modelo es: 
+El modelo de menor AIC es (p,d,q)(P,D,Q) = (1,1,2)(0,1,1), que no coincide con el modelo proporcionado por la función <code>auto.arima</code>. Los estadísticos relacionados con el modelo son:
+
+```{r, echo = FALSE}
+accuracy(source_energy_model_2)
+```
+
+
+En este caso, seleccionamos el modelo número dos porque tiene el segundo AIC más bajo y los mejores p-values. La ecuación del modelo es: 
+
 
 $$
-\bigtriangledown \bigtriangledown_{12} x_t = (1 - 0.3712 B) (1 - 0.2461 B^{12})\epsilon_t
-$$
-$$
-(1 - B) (1 - B^{12}) x_t = (1 - 0.3712 B) (1 - 0.2461 B^{12})\epsilon_t
+(1- 0.5579B)(1-0. 0.5579B^{12})(1 - B) (1 - B^{12}) x_t = (1 -1.1140B + 0.1140B^{2}) (1 -  B^{12})\epsilon_t
 $$
 
 Veamos a continuación la representación gráfica del ajuste obtenido. Línea negra: valores reales, línea roja: valores ajustados. 
 
 ```{r}
 # Elegimos modelo
-source_energy_model <- source_energy_model_3
+source_energy_model <- source_energy_model_2
 fitval <- fitted(source_energy_model)
 
 plot(insample, xlab = x_label, ylab = y_label,
@@ -389,7 +398,7 @@ Antes de pasar a la predicción, comprobamos que el modelo es válido. Como mues
 checkresiduals(source_energy_model, plot=TRUE)
 ```
 
-La predicción obtenida para los 12 meses de 2019 junto con el error de predicción vienen dados por:
+La predicción obtenida para los 12 meses de 2022 junto con el error de predicción vienen dados por:
 
 ```{r}
 pred <- forecast(source_energy_model, h = 12)$mean
@@ -404,7 +413,7 @@ mape_pred <- 100*mean(abs(outsample-pred)/outsample)
 cat("Predicción para 2022:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
 ```
 
-Finalmente, representamos gráficamente los valores reales de 2019 que habíamos reservado junto con la predicción puntual:
+Finalmente, representamos gráficamente los valores reales de 2022 que habíamos reservado junto con la predicción puntual:
 
 ```{r}
 plot(pred, col="red",xaxt="n", xlab = x_label, ylab = y_label,
@@ -414,7 +423,7 @@ legend("topleft", legend = c("Predicción ARIMA", "Datos reales"),
        col = c("red", "black"), pch = c(NA, 19), lty = c(1, 0))
 ```
 
-Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters aditivo y, por tanto, como predicción para el año 2019 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2019 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).
+Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters multiplicativo y, por tanto, como predicción para el año 2022 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2022 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).
 
 # Solar
 
@@ -462,7 +471,7 @@ autoplot(energy_source_ts, xlab = "Tiempo / años", ylab = "Generación de energ
   theme_light()
 ```
 
-A partir del gráfico temporal podemos apreciar una cierta evolución en el largo plazo (*tendencia*): durante los primeros cuatro años se observa una tendencia decreciente. A partir de 2014, la serie temporal toma valores cada vez mayores, es decir, la serie presenta una tendencia creciente. Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con una mayor generación de eenrgía durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
+A partir del gráfico temporal podemos apreciar una cierta evolución en el largo plazo (*tendencia*): durante todos los años se observa una tendencia creciente. A partir de 2017, la serie temporal toma crece de forma proporcionalmente más lenta, pero se mantiene la tendencia. Además, podemos identificar un aumento en la variabilidad de los datos a lo largo del tiempo (*heterocedasticidad*). Por otro lado, se observa un comportamiento cíclico que se repite año tras año (*estacionalidad*), con una mayor generación de energía durante los meses de verano. La longitud del ciclo estacional es $c = 12$. 
 
 En este ejemplo, la estacionalidad de la serie se observa claramente en el gráfico temporal. No obstante, el diagrama de cajas por mes nos permite también valorar la presencia de estacionalidad.
 
@@ -480,8 +489,10 @@ boxplot(energy_source_df$gen.MWh ~ energy_source_df$mes, xlab = "Tiempo / años"
 ```
 
 Una gráfica estacional es similar a una gráfica temporal, excepto que los datos se dibujan contra las “estaciones” individuales en las que se observaron los datos. A continuación se ofrece un ejemplo:
+
 ```{r}
 ggseasonplot(energy_source_ts, year.labels = TRUE, year.labels.left = TRUE) +
+  xlab("Mes") +
   ylab("Generación de energía / MWh") +
   ggtitle(paste("Seasonal plot:", energy_source_label)) + 
   theme_light()
@@ -490,7 +501,7 @@ ggseasonplot(energy_source_ts, year.labels = TRUE, year.labels.left = TRUE) +
 
 ## Análisis de la serie mediante suavizado exponencial
 
-Dadas las características de la serie temporal: tendencia y estacionalidad, el método adecuado para su análisis es el método de Holt-Winters.
+Dadas las características de la serie temporal: tendencia, estacionalidad y heterocedasticidad; el método adecuado para su análisis es el método de Holt-Winters.
 
 Vamos a empezar analizando la serie con el método de Holt-Winters aditivo pues, a partir del gráfico temporal, podríamos asumir que el efecto de la estacionalidad es multiplicativo (parece aumentar con el nivel). No obstante, analizaremos también la serie con el método de Holt-Winters aditivo y la serie transformada (utilizando la transformación logarítmica) con Holt-Winters aditivo. 
 
@@ -590,7 +601,7 @@ cat("Predicción para 2022:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
 ts.plot(insample, pred, lty = 1:2,
         gpars = list(xlab = x_label, ylab = y_label,
                      main = paste("Predicción para el año 2022:\n", energy_source_label)))
-legend("topleft", legend = c("Datos 2012-2020", "Predicción 2022"),
+legend("topleft", legend = c("Datos 2012-2021", "Predicción 2022"),
        lty = c(1, 2))
 ```
 
@@ -610,7 +621,7 @@ y calcular el intervalo de predicción al 95\%:
 pred <- predict(energy_source_HW, n.ahead = 12, prediction.interval = TRUE, level = 0.95) 
 plot(energy_source_HW, pred, xlab = x_label, ylab = y_label,
      main = paste("Intervalo de predicción al 95% para el año 2022:\n", energy_source_label))
-legend("topleft", legend = c("Datos 2012-2020", "Predicción completa", "Confianza 95%"),
+legend("topleft", legend = c("Datos 2012-2021", "Predicción completa", "Confianza 95%"),
        col = c("black", "red", "blue"), lty = 1)
 ```
 
@@ -649,19 +660,13 @@ acf(dd12insample,lag.max=50)
 pacf(dd12insample,lag.max=50)
 ```
 
-REESCRIBIR PALOS
-
 Si nos fijamos en los primeros retardos, podemos pensar:
 
-* La función de autocorrelación tiene el primer coeficiente significativo, mientras que la función de autocorrelación parcial muestra decrecimiento: (p,d,q) = (0,1,1)
-
-* La función de autocorrelación decrece y la función de autocorrelación parcial tiene el primer coeficiente significativo: (p,d,q) = (1,1,0)
+* Tanto la función de autocorrelación como la función de autocorrelación parcial tienen el primer coeficiente significativo: (p,d,q) = (0,1,0)
 
 * Las dos funciones muestran decrecimiento a partir del primer coeficiente: (p,d,q) = (1,1,1)
 
 Si nos fijamos en los retardos estacionales (Lag = 1, 2, 3, 4 ciclos estacionales), podemos pensar:
-
-* No hay ningún coeficiente significativo: (P,D,Q) = (0,1,0)
 
 * La función de autocorrelación tiene el primer coeficiente significativo, mientras que la función de autocorrelación parcial muestra decrecimiento: (P,D,Q) = (0,1,1)
 
@@ -687,13 +692,19 @@ source_energy_model_auto <- auto.arima(loginsample)
 source_energy_model_auto
 ```
 
-El modelo de menor AIC es (p,d,q)(P,D,Q) = (0,1,1)(0,1,1), que coincide con el modelo proporcionado por la función <code>auto.arima</code>. El MAPE asociado a este modelo es 2.4599. La ecuación del modelo es: 
+El modelo de menor AIC es (p,d,q)(P,D,Q) = (0,1,0)(0,1,1), que coincide con el modelo proporcionado por la función <code>auto.arima</code>. Los estadísticos asociados a este modelo son:
+
+```{r, echo = FALSE}
+accuracy(source_energy_model_1)
+```
+
+La ecuación del modelo es: 
 
 $$
-\bigtriangledown \bigtriangledown_{12} x_t = (1 - 0.3712 B) (1 - 0.2461 B^{12})\epsilon_t
+\bigtriangledown x_t = (1 - 0.693 B)\epsilon_t
 $$
 $$
-(1 - B) (1 - B^{12}) x_t = (1 - 0.3712 B) (1 - 0.2461 B^{12})\epsilon_t
+(1 - B) x_t = (1 - 0.693 B)\epsilon_t
 $$
 
 Veamos a continuación la representación gráfica del ajuste obtenido. Línea negra: valores reales, línea roja: valores ajustados. 
@@ -714,7 +725,7 @@ Antes de pasar a la predicción, comprobamos que el modelo es válido. Como mues
 checkresiduals(source_energy_model, plot=TRUE)
 ```
 
-La predicción obtenida para los 12 meses de 2019 junto con el error de predicción vienen dados por:
+La predicción obtenida para los 12 meses de 2022 junto con el error de predicción vienen dados por:
 
 ```{r}
 logoutsample <- log(outsample)
@@ -731,7 +742,7 @@ mape_pred <- 100*mean(abs(logoutsample-pred)/logoutsample)
 cat("Predicción para 2022:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
 ```
 
-Finalmente, representamos gráficamente los valores reales de 2019 que habíamos reservado junto con la predicción puntual:
+Finalmente, representamos gráficamente los valores reales de 2022 que habíamos reservado junto con la predicción puntual:
 
 ```{r}
 plot(pred, col="red",xaxt="n", xlab = x_label, ylab = y_label_log,
@@ -751,5 +762,5 @@ legend("topleft", legend = c("Predicción ARIMA", "Datos reales"),
        col = c("red", "black"), pch = c(NA, 19), lty = c(1, 0))
 ```
 
-Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters aditivo y, por tanto, como predicción para el año 2019 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2019 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).
+Si comparamos ambas metodologías, vemos que el error de ajuste correspondiente al modelo sARIMA es menor que el obtenido con Holt-Winters aditivo y, por tanto, como predicción para el año 2022 deberíamos haber tomado las obtenidas con la metodología Box-Jenkins. Además, como habíamos reservado las observaciones  de 2022 para valorar la capacidad predictiva del modelo, comprobamos que las predicciones obtenidas con el modelo sARIMA son, también, más precisas (menor error de predicción).
 
