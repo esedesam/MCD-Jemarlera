@@ -1960,7 +1960,7 @@ mape_log &lt;- 100*mean( abs(insamplecut - fitval_ori) / insamplecut )</code></p
 Tabla de resultados obtenidos con los distintos métodos</h3>
 <pre class="r"><code>error_ajuste &lt;- matrix(c(rmse_add, mape_add, rmse_mult, mape_mult, rmse_log, mape_log), nrow = 3, byrow = TRUE)
 rownames(error_ajuste) &lt;- c(&quot;Aditivo&quot;, &quot;Multiplicativo&quot;, &quot;Log-Aditivo&quot;)
-colnames(error_ajuste) &lt;- c(&quot;RMSE / $&quot;, &quot;MAPE / %&quot;)
+colnames(error_ajuste) &lt;- c(&quot;RMSE / MWh&quot;, &quot;MAPE / %&quot;)
 kable(error_ajuste, caption = &quot;Tabla 1. Resultados obtenidos con los distintos métodos de suavizado&quot;, align = &quot;c&quot;)</code></pre>
 <table>
 <caption>Tabla 1. Resultados obtenidos con los distintos métodos de
@@ -1968,7 +1968,7 @@ suavizado</caption>
 <thead>
 <tr class="header">
 <th align="left"></th>
-<th align="center">RMSE / $</th>
+<th align="center">RMSE / MWh</th>
 <th align="center">MAPE / %</th>
 </tr>
 </thead>
@@ -2011,9 +2011,9 @@ pred &lt;- predict(energy_source_HW, 12)
 rmse_pred &lt;- sqrt(mean( (outsample - pred) ^ 2 ))
 mape_pred &lt;- 100 * mean( abs(outsample - pred) / outsample )
 
-cat(&quot;Predicción para 2021:\nRMSE:&quot;, rmse_pred, &quot;$&quot;, &quot;\nMAPE:&quot;, mape_pred, &quot;%&quot;, &quot;\n&quot;)</code></pre>
+cat(&quot;Predicción para 2021:\nRMSE:&quot;, rmse_pred, &quot;MWh&quot;, &quot;\nMAPE:&quot;, mape_pred, &quot;%\n&quot;)</code></pre>
 <pre><code>## Predicción para 2021:
-## RMSE: 16904653 $ 
+## RMSE: 16904653 MWh 
 ## MAPE: 1.959043 %</code></pre>
 <pre class="r"><code># pred contiene las predicciones puntuales para los 12 meses de 2021
 ts.plot(insample, pred, lty = 1:2,
@@ -2246,10 +2246,10 @@ pred # Predicción puntual</code></pre>
 <pre class="r"><code>rmse_pred &lt;- sqrt(mean((outsample-pred)^2))
 mape_pred &lt;- 100*mean(abs(outsample-pred)/outsample)
 
-cat(&quot;Predicción para 2021:\nRMSE:&quot;, rmse_pred, &quot;\nMAPE:&quot;, mape_pred, &quot;\n&quot;)</code></pre>
+cat(&quot;Predicción para 2021:\nRMSE:&quot;, rmse_pred, &quot;MWh&quot;, &quot;\nMAPE:&quot;, mape_pred, &quot;%\n&quot;)</code></pre>
 <pre><code>## Predicción para 2021:
-## RMSE: 15817957 
-## MAPE: 1.8845</code></pre>
+## RMSE: 15817957 MWh 
+## MAPE: 1.8845 %</code></pre>
 <p>Finalmente, representamos gráficamente los valores reales de 2021 que
 habíamos reservado junto con la predicción puntual:</p>
 <pre class="r"><code>plot(pred, col=&quot;red&quot;,xaxt=&quot;n&quot;, xlab = &quot;Año 2021&quot;, ylab = y_label,
@@ -2262,7 +2262,7 @@ legend(&quot;topleft&quot;, legend = c(&quot;Predicción sARIMA&quot;, &quot;Dat
 exponencial con Holt-Winters y con el modelo de sARIMA.</p>
 <pre class="r"><code>tabla_comparacion &lt;- matrix(c(16904653, 1.959043, 15817957, 1.8845), nrow = 2, byrow = TRUE)
 rownames(tabla_comparacion) &lt;- c(&quot;Holt-Winters (multiplicativo)&quot;, &quot;sARIMA&quot;)
-colnames(tabla_comparacion) &lt;- c(&quot;RMSE / $&quot;, &quot;MAPE / %&quot;)
+colnames(tabla_comparacion) &lt;- c(&quot;RMSE / MWh&quot;, &quot;MAPE / %&quot;)
 kable(tabla_comparacion, caption = &quot;Tabla 2. Comparación entre modelo de Holt-Winters y de sARIMA&quot;, align = &quot;c&quot;)</code></pre>
 <table>
 <caption>Tabla 2. Comparación entre modelo de Holt-Winters y de
@@ -2270,7 +2270,7 @@ sARIMA</caption>
 <thead>
 <tr class="header">
 <th align="left"></th>
-<th align="center">RMSE / $</th>
+<th align="center">RMSE / MWh</th>
 <th align="center">MAPE / %</th>
 </tr>
 </thead>
@@ -2507,7 +2507,7 @@ mape_log &lt;- 100*mean( abs(insamplecut - fitval_ori) / insamplecut )</code></p
 Tabla de resultados obtenidos con los distintos métodos</h3>
 <pre class="r"><code>error_ajuste &lt;- matrix(c(rmse_add, mape_add, rmse_mult, mape_mult, rmse_log, mape_log), nrow = 3, byrow = TRUE)
 rownames(error_ajuste) &lt;- c(&quot;Aditivo&quot;, &quot;Multiplicativo&quot;, &quot;Log-Aditivo&quot;)
-colnames(error_ajuste) &lt;- c(&quot;RMSE / $&quot;, &quot;MAPE / %&quot;)
+colnames(error_ajuste) &lt;- c(&quot;RMSE / MWh&quot;, &quot;MAPE / %&quot;)
 kable(error_ajuste, caption = &quot;Tabla 3. Resultados obtenidos con los distintos métodos de suavizado&quot;, align = &quot;c&quot;)</code></pre>
 <table>
 <caption>Tabla 3. Resultados obtenidos con los distintos métodos de
@@ -2515,7 +2515,7 @@ suavizado</caption>
 <thead>
 <tr class="header">
 <th align="left"></th>
-<th align="center">RMSE / $</th>
+<th align="center">RMSE / MWh</th>
 <th align="center">MAPE / %</th>
 </tr>
 </thead>
@@ -2554,10 +2554,10 @@ pred &lt;- predict(energy_source_HW, 12)
 rmse_pred &lt;- sqrt(mean( (outsample - pred) ^ 2 ))
 mape_pred &lt;- 100 * mean( abs(outsample - pred) / outsample )
 
-cat(&quot;Predicción para 2021:\nRMSE:&quot;, rmse_pred, &quot;\nMAPE:&quot;, mape_pred, &quot;\n&quot;)</code></pre>
+cat(&quot;Predicción para 2021:\nRMSE:&quot;, rmse_pred, &quot;\nMAPE:&quot;, mape_pred, &quot;%\n&quot;)</code></pre>
 <pre><code>## Predicción para 2021:
 ## RMSE: 1342167 
-## MAPE: 6.170981</code></pre>
+## MAPE: 6.170981 %</code></pre>
 <pre class="r"><code># pred contiene las predicciones puntuales para los 12 meses de 2021
 ts.plot(insample, pred, lty = 1:2,
         gpars = list(xlab = x_label, ylab = y_label,
@@ -2757,10 +2757,10 @@ pred # Predicción puntual</code></pre>
 <pre class="r"><code>rmse_pred &lt;- sqrt(mean((logoutsample-pred)^2))
 mape_pred &lt;- 100*mean(abs(logoutsample-pred)/logoutsample)
 
-cat(&quot;Predicción para 2021:\nRMSE:&quot;, rmse_pred, &quot;\nMAPE:&quot;, mape_pred, &quot;\n&quot;)</code></pre>
+cat(&quot;Predicción para 2021:\nRMSE:&quot;, rmse_pred, &quot;\nMAPE:&quot;, mape_pred, &quot;%\n&quot;)</code></pre>
 <pre><code>## Predicción para 2021:
 ## RMSE: 0.07272347 
-## MAPE: 0.3359066</code></pre>
+## MAPE: 0.3359066 %</code></pre>
 <p>Finalmente, representamos gráficamente los valores reales de 2021 que
 habíamos reservado junto con la predicción puntual:</p>
 <pre class="r"><code>plot(pred, col=&quot;red&quot;,xaxt=&quot;n&quot;, xlab = &quot;Año 2021&quot;, ylab = y_label_log,

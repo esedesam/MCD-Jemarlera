@@ -254,7 +254,7 @@ mape_log <- 100*mean( abs(insamplecut - fitval_ori) / insamplecut )
 ```{r}
 error_ajuste <- matrix(c(rmse_add, mape_add, rmse_mult, mape_mult, rmse_log, mape_log), nrow = 3, byrow = TRUE)
 rownames(error_ajuste) <- c("Aditivo", "Multiplicativo", "Log-Aditivo")
-colnames(error_ajuste) <- c("RMSE / $", "MAPE / %")
+colnames(error_ajuste) <- c("RMSE / MWh", "MAPE / %")
 kable(error_ajuste, caption = "Tabla 1. Resultados obtenidos con los distintos métodos de suavizado", align = "c")
 ```
 
@@ -276,7 +276,7 @@ pred <- predict(energy_source_HW, 12)
 rmse_pred <- sqrt(mean( (outsample - pred) ^ 2 ))
 mape_pred <- 100 * mean( abs(outsample - pred) / outsample )
 
-cat("Predicción para 2021:\nRMSE:", rmse_pred, "$", "\nMAPE:", mape_pred, "%", "\n")
+cat("Predicción para 2021:\nRMSE:", rmse_pred, "MWh", "\nMAPE:", mape_pred, "%\n")
 
 # pred contiene las predicciones puntuales para los 12 meses de 2021
 ts.plot(insample, pred, lty = 1:2,
@@ -454,7 +454,7 @@ plot(forecast(source_energy_model,h=12), xlab = x_label, ylab = y_label,
 rmse_pred <- sqrt(mean((outsample-pred)^2))
 mape_pred <- 100*mean(abs(outsample-pred)/outsample)
 
-cat("Predicción para 2021:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
+cat("Predicción para 2021:\nRMSE:", rmse_pred, "MWh", "\nMAPE:", mape_pred, "%\n")
 ```
 
 Finalmente, representamos gráficamente los valores reales de 2021 que habíamos reservado junto con la predicción puntual:
@@ -472,7 +472,7 @@ En la siguiente Tabla se recogen los errores RMSE y MAPE de suavizado exponencia
 ```{r}
 tabla_comparacion <- matrix(c(16904653, 1.959043, 15817957, 1.8845), nrow = 2, byrow = TRUE)
 rownames(tabla_comparacion) <- c("Holt-Winters (multiplicativo)", "sARIMA")
-colnames(tabla_comparacion) <- c("RMSE / $", "MAPE / %")
+colnames(tabla_comparacion) <- c("RMSE / MWh", "MAPE / %")
 kable(tabla_comparacion, caption = "Tabla 2. Comparación entre modelo de Holt-Winters y de sARIMA", align = "c")
 ```
 
@@ -640,7 +640,7 @@ mape_log <- 100*mean( abs(insamplecut - fitval_ori) / insamplecut )
 ```{r}
 error_ajuste <- matrix(c(rmse_add, mape_add, rmse_mult, mape_mult, rmse_log, mape_log), nrow = 3, byrow = TRUE)
 rownames(error_ajuste) <- c("Aditivo", "Multiplicativo", "Log-Aditivo")
-colnames(error_ajuste) <- c("RMSE / $", "MAPE / %")
+colnames(error_ajuste) <- c("RMSE / MWh", "MAPE / %")
 kable(error_ajuste, caption = "Tabla 3. Resultados obtenidos con los distintos métodos de suavizado", align = "c")
 ```
 
@@ -659,7 +659,7 @@ pred <- predict(energy_source_HW, 12)
 rmse_pred <- sqrt(mean( (outsample - pred) ^ 2 ))
 mape_pred <- 100 * mean( abs(outsample - pred) / outsample )
 
-cat("Predicción para 2021:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
+cat("Predicción para 2021:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "%\n")
 
 # pred contiene las predicciones puntuales para los 12 meses de 2021
 ts.plot(insample, pred, lty = 1:2,
@@ -828,7 +828,7 @@ plot(forecast(source_energy_model,h=12), xlab = x_label, ylab = y_label_log,
 rmse_pred <- sqrt(mean((logoutsample-pred)^2))
 mape_pred <- 100*mean(abs(logoutsample-pred)/logoutsample)
 
-cat("Predicción para 2021:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "\n")
+cat("Predicción para 2021:\nRMSE:", rmse_pred, "\nMAPE:", mape_pred, "%\n")
 ```
 
 Finalmente, representamos gráficamente los valores reales de 2021 que habíamos reservado junto con la predicción puntual:
