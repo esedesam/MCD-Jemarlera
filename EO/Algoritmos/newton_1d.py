@@ -19,6 +19,16 @@ def newton_optimization_1d(f, x0, tol = 1e-6, max_iter = 100):
         x_new = x_current - df_prime / df_double_prime # iteración
         
         if abs(x_new - x_current) < tol: # salida por tolerancia
+            
+            second_derivative = df_double_prime.subs(x, x_new)
+            
+            if second_derivative > 0:
+                print(f"Minimum found at x = {x_new}")
+            elif second_derivative < 0:
+                print(f"Maximum found at x = {x_new}")
+            else:
+                print(f"Saddle point found at x = {x_new}")
+                
             return x_new
         
         x_current = x_new
