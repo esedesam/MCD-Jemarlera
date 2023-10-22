@@ -1,0 +1,59 @@
+---
+title: "Método de la bisección"
+author: "Pablo Vicente Martínez"
+date: "2023-10-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+busq_dic <- function(func, a, b, tol = 1e-6, iter_max = 100) {
+  if (func(a) > func(b)) {
+    temp <- a
+    a <- b
+    b <- temp
+  }
+
+  for (i in 1:iter_max) {
+    punto_med <- (a + b) / 2
+    f_punto_med <- func( punto_med)
+
+    if (abs(b - a) < tol) {
+      return(list(minimo = punto_med, valor = f_ punto_med))
+    }
+
+    punto_izq <- (a + punto_med) / 2
+    punto_der <- (punto_med + b) / 2
+
+    f_izq <- func(punto_izq)
+    f_der <- func(punto_der)
+
+    if (f_izq <= f_punto_med) {
+      b <- midpoint
+    } else if (f_der <= f_punto_med) {
+      a <- punto_med
+    } else {
+      break
+    }
+  }
+
+  return(list(minimo = punto_med, valor = f_punto_med))
+}
+
+# Ejemplo de uso:
+funcion <- function(x) {
+  return(-4*sin(x)*(1+cos(x))) 
+}
+
+result <- busq_dic(funcion, 0, pi/2)
+cat("Mínimo encontrado en x =", result$minimo, ", f(x) =", result$valor, "\n")
+
+
+
+```
+
