@@ -9,22 +9,131 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# Ejercicio 3
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Además de las distribuciones exponencial y gamma, la distribución inversa Gaussiana es otro modelo ampliamente utilizado para los intervalos entre eventos. Describe el tiempo de primer paso de un movimiento browniano unidimensional sujeto a un valor umbral fijo. La función de densidad de probabilidad se define como:
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+$$
+f(x|\mu, \lambda) =
+\left( \frac{\lambda}{2\pi x^3} \right)^{1/2} \cdot
+\exp{\left( \frac{-\lambda(x-\mu )^ {2}}{2\mu^2 x} \right)}
+$$
 
-```{r cars}
-summary(cars)
+## Ejercicio 3.1
+
+Escriba (analíticamente) la fórmula para el logaritmo de la verosimilitud dadas n observaciones i.i.d.
+
+La función de log-verosimilitud es
+
+\begin{align}
+l_n (\mu, \lambda) =
+\ln{\left[ \mathcal{L}_n (\mu, \lambda) \right]} =
+\ln{\left[\prod_{i = 1}^n \mathscr{f}(x_i|\mu, \lambda) \right]} =
+\sum_{i = 1}^n \ln{\left[ \mathscr{f}(x_i|\mu, \lambda) \right]} =
+\sum_{i = 1}^n \ln{\left[
+  \left( \frac{\lambda}{2\pi x_i^3} \right)^{1/2} \cdot
+  \exp{\left( \frac{-\lambda(x_i-\mu )^ {2}}{2\mu^2 x_i} \right)} \right]} = \\
+\sum_{i = 1}^n \left\{ \ln{\left[
+  \left( \frac{\lambda}{2\pi x_i^3} \right)^{1/2} \right]} -
+  \frac{-\lambda(x_i-\mu )^ {2}}{2\mu^2 x_i} \right\} =
+\sum_{i = 1}^n \left[ \frac{1}{2} \ln{
+  \left( \frac{\lambda}{2\pi x_i^3} \right)} -
+  \frac{\lambda(x_i-\mu )^ {2}}{2\mu^2 x_i} \right]
+\end{align}
+
+## Ejercicio 3.2
+
+Intente derivar la fórmula de los estimadores de máxima verosimilitud para $\mu$ y $\lambda$ (si no es capaz, vaya al punto 3.4).
+
+La derivada respecto de $\mu$ es
+
+$$
+\frac{\partial}{\partial \mu} l_n (\mu, \lambda) =
+\sum_{i=1}^n \left[
+  \frac{1}{2} \ln{\left( \frac{\lambda}{2\pi x_i^3} \right)} -
+  \frac{\lambda(x_i-\mu)}{\mu^2 x_i} \right]
+$$
+
+La derivada respecto de $\lambda$ es
+
+$$
+\frac{\partial}{\partial \lambda} l_n (\mu, \lambda) =
+\sum_{i=1}^n \left[ \frac{\lambda}{2} -
+\frac{\left(x_i-\mu\right)^2}{2\mu^2 x_i} \right] =
+n\frac{\lambda}{2} - \sum_{i=1}^n \frac{\left(x_i-\mu\right)^2}{2\mu^2 x_i}
+$$
+
+## Ejercicio 3.3
+
+Aplique los estimadores de MLE en el paso anterior a los datos ISI experimentales, es decir, calcule las estimaciones teóricas de $\mu$ y $\lambda$ para los datos ISI.
+
+Resolviendo el sistema de ecuaciones, obtenemos los estimadores
+
+$$
+\hat{\mu} = \frac{\sum_{i=n}^n x_i}{n} \ , \
+\frac{1}{\hat{\lambda}} =
+  \frac{1}{n} \sum_{i=n}^n \left( \frac{1}{x_i} - \frac{1}{\hat{\mu}} \right)
+$$
+
+```{r}
+if (!require(statmod)) {
+  install.packages("statmod")
+  library(statmod)
+}
+
+
+isi <- read.table("./data/neuronspikes.txt", col.names = "isi")[[1]]
+
+# params = (mu, lambda)
+
+d_mu <- function(params, x) {
+  mu <- params[1]
+  lambda <- params[2]
+  value <- sum(log(lambda / (2 * pi * x^3)) / 2 - lambda * (x - mu) / (mu^2 * x))
+  return(value)
+}
+
+d_lambda <- function(params, x) {
+  mu <- params[1]
+  lambda <- params[2]
+  value <- length(x) * lambda / 2 - sum( (x - mu)^2 / (2 * mu^2 * x) )
+  return(value)
+}
+
+eq_system <- function(params, x) {
+  eq1 <- d_mu(params, x)
+  eq2 <- d_lambda(params, x)
+  return(c(eq1, eq2))
+}
+
+mllk <- function(params, data) {
+  mean <- params[1]
+  shape <- params[2]
+  -sum(dinvgauss(data, mean = mean, shape = shape, log = TRUE))
+}
+
+optim(c(1, 1), f = mllk, data = isi, method = c("Nelder-Mead"))
 ```
 
-## Including Plots
+```{r}
+if (!require(MASS)) {
+  install.packages("MASS")
+  library(MASS)
+}
+# Ajuste de los datos a función que especifiquemos
 
-You can also embed plots, for example:
+fit <- fitdistr(isi, "")
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Obtener parámetros
+estimated_shape <- fit$estimate["shape"]
+estimated_rate <- fit$estimate["rate"]
+
+cat("El valor de shape estimado es:", estimated_shape)
+cat("\nEl valor de rate estimado es:", estimated_rate)
+
+hist(isidata$isi , breaks = 10, probability = TRUE)
+curve(dgamma(x, shape = estimated_shape, rate = estimated_rate), add = TRUE, col = "blue")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+######
