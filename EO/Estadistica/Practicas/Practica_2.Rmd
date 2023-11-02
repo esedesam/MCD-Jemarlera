@@ -5,26 +5,142 @@ date: "2023-11-02"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
+# Configuración general de chunks
+library(knitr)
+options(width = 100)
+knitr::opts_chunk$set(echo = T, message = T, error = F, warning = F, comment = NA, dpi = 100, tidy = T, cache.path = '.cache/', fig.path = './figure/', include = T)
 ```
 
-## R Markdown
+Como es habitual, cargamos las librerías que necesitamos al inicio del documento.
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r librerias, message = T, include = T, echo = T}
+# Carga de librerías necesarias con pacman
+library(pacman)
+pacman::p_load(readr, stringr, tidyr, dplyr, readxl, ggplot2, forcats, MASS)
 ```
 
-## Including Plots
+# Ejercicio 2. Un estudio sobre datos de neuronas
 
-You can also embed plots, for example:
+Las neuronas funcioanng enerando y propagando potenciales de acción, llamados "spikes". El intervalo de tiempo entre dos spikes adyacentes, o inter-spikes interval (ISI), se utiliza a menudo en la neurocicencia computacional. En el archivo *neuronspikes.txt* puedes encontrar algunas mediciones de ISI.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+Carga los datos en R y completa los siguienes ejercicios:
+
+```{r}
+isidata <- read.table("./data/neuronspikes.txt", col.names = "isi")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Ejercicio 2.1. 
+
+Si asumimos que las observaciones de ISI son i.i.d. siguen una distribución exponencial con parámetro $\lambda$, calcule el estimador de máxima verosimilitud de $\lambda$.
+
+Sea $X_1, ..., X_n \sim \exp({\lambda})$ ($\lambda$ > 0) donde sabemos que la PDF es $f(x|\lambda) = \lambda \exp(-\lambda x)$.
+
+
+La verosimilitud por definición:
+
+$$\mathcal{L}_n(\lambda) = \prod_{i = 1}^n f(X_i|\lambda) = \prod_{i = 1}^n \lambda \exp(-\lambda X_i)$$
+
+Nos será más sencillo trabajar con la función log-verosoimiltud por las propiedades de la función exponencial:
+
+
+$$ℓ_n(\lambda) = \ln{\mathcal{L_n(\lambda)}} = \sum_{i = 1}^n (\ln(\lambda) + (-\lambda X_i)) = n \ln(\lambda) - \lambda \sum_{i = 1}^n(X_i)$$
+Procedemos a calcular el valor de $\lambda$ que permite maximizar esta función, requiriendo acudir al cálculo diferencial.
+
+Igualamos la primera derivada a cero para hallar los puntos críticos:
+
+$$\frac{dℓ_n}{d\lambda} = \frac{n}{\lambda} - \sum_{i = 1} ^n (X_i) = 0 $$
+Obtenemos despejando para $\lambda$:
+
+$$\lambda = \frac{n}{\sum_{i = 1}^n} = \frac{1}{\bar{X}}$$
+Para verificar que es un máximo acudimos al criterio de la segunda derivada, que nos ofrece:
+
+$$ \frac{d^2ℓ_n}{d\lambda^2} = - \frac{n}{\lambda ^2}, $$, de tal forma que se ve que es siempre negativo dada nuestra restricción en el parámetro $\lambda$ de ser positivo.
+
+Podemos entonces asegurar que el estimador de máxima verosimilitud de nuestro parámetro es:
+
+$$\hat{\lambda} = \frac{1}{\bar{X}} $$
+Así pues, tendremos:
+
+```{r}
+lambda_hat <- 1 / mean(isidata$isi)
+cat("El parámetro estimado es", lambda_hat, "\n")
+```
+```{r}
+mllk <- function(rate, data) {
+  -sum((dexp(data, rate = rate, log = TRUE)))
+}
+
+optimize(f = mllk, data = isidata$isi, interval = c(0, 10))
+
+rate_num_est <- optimize(f = mllk, data = isidata$isi, interval = c(0, 10))$minimum
+
+hist(isidata$isi, breaks = 10, probability = TRUE)
+curve(dexp(x, rate_num_est), add = TRUE, col = "blue")
+```
+
+Con una función implementada en R directamente nos ahorraríamos esto:
+
+```{r}
+data <- isidata$isi  
+
+# Ajuste de los datos a función que especifiquemos
+fit <- fitdistr(data, "exponential")
+
+# Obtener parámetros
+estimated_rate <- fit$estimate
+
+# Print the results
+cat("El parámetro estimado es", estimated_rate, "\n")
+```
+
+## Ejercicio 2.2
+
+Ahora, asumiendo que las observaciones de ISI son i.i.d. y siguen una distribución gamma con paráemtros $\alpha$ (*shape*) y $\beta$ (*rate*), encuentre los estimadores de máxima verosimiltud de los parámetros $\alpha$ y $\beta$.
+
+[here](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&ved=2ahUKEwiQuY3QqaWCAxV0UKQEHfzsA3YQFnoECA0QAw&url=https%3A%2F%2Fzenodo.org%2Frecord%2F4019900%2Ffiles%2FMLE_Gamma.pdf&usg=AOvVaw0jf-TZxBuj4LJFZZCs0ofh&opi=89978449)
+
+Sacaremos numéricamente estos estimadores utilizando una función implementada en R:
+
+```{r}
+mllk <- function(params, data) {
+  shape <- params[1]
+  rate <- params[2]
+  -sum(dgamma(data, shape = shape, rate = rate, log = TRUE))
+}
+
+params <- optim(c(1, 1), f = mllk, data = isidata$isi, method = c("Nelder-Mead"))$par
+
+hist(isidata$isi , breaks = 10, probability = TRUE)
+curve(dgamma(x, shape = params[1], rate = params[2]), add = TRUE, col = "blue")
+
+```
+
+```{r}
+data <- isidata$isi  
+
+# Ajuste de los datos a función que especifiquemos
+
+fit <- fitdistr(data, "gamma")
+
+# Obtener parámetros
+estimated_shape <- fit$estimate["shape"]
+estimated_rate <- fit$estimate["rate"]
+
+cat("El valor de shape estimado es:", estimated_shape)
+cat("\nEl valor de rate estimado es:", estimated_rate)
+
+hist(isidata$isi , breaks = 10, probability = TRUE)
+curve(dgamma(x, shape = estimated_shape, rate = estimated_rate), add = TRUE, col = "blue")
+```
+
+## Ejercicio 2.3
+
+Para la distribución gamma, conocemos las fórmulas de la media y la varianza, como sigue,
+
+$$\mathbb{E} (X) &= \frac{\alpha}{\beta}$$
+$$\mathbb{V} (X) &= \frac{\alpha}{\beta^2}$$
+
+
+
+
