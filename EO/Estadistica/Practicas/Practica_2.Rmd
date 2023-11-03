@@ -138,9 +138,93 @@ curve(dgamma(x, shape = estimated_shape, rate = estimated_rate), add = TRUE, col
 
 Para la distribución gamma, conocemos las fórmulas de la media y la varianza, como sigue,
 
-$$\mathbb{E} (X) &= \frac{\alpha}{\beta}$$
-$$\mathbb{V} (X) &= \frac{\alpha}{\beta^2}$$
+$$ \mathbb{E} (X) = \frac{\alpha}{\beta} $$
+
+$$\mathbb{V} (X) = \frac{\alpha}{\beta^2}$$
+
+Tratar de encontrar el estimador de momentos de $\alpha$ y $\beta$. El estimador de momentos puede utilizarse para encontrar la primera estimación y para inicializar el algoritmo iterativo de MLE.
+
+Tenemos las dos primeras ecuaciones del método de los momentos, por lo que tenemos lo siguiente. Si introducimos la primera ecuación en la segunda:
+
+$$ \beta = \frac{\mathbb{E (X)}}{\mathbb{V (X)}} $$
+Esto en R sería:
+
+```{r}
+beta_est <- mean(isidata$isi) / var(isidata$isi)
+beta_est
+```
+
+Para $\alpha$ solamente resta sustituir:
+
+$$ \alpha = \beta \mathbb{E (X)} $$
+
+```{r}
+alpha_est <- beta_est * mean(isidata$isi)
+alpha_est
+```
+```{r}
+mllk <- function(params, data) {
+  shape <- params[1]
+  rate <- params[2]
+  -sum(dgamma(data, shape = shape, rate = rate, log = TRUE))
+}
+
+params <- optim(c(alpha_est, beta_est), f = mllk, data = isidata$isi, method = c("Nelder-Mead"))$par
+
+params
+
+hist(isidata$isi , breaks = 10, probability = TRUE)
+curve(dgamma(x, shape = params[1], rate = params[2]), add = TRUE, col = "blue")
+```
+
+Vemos cómo la estimación ofrecida por el método de máxima verosimilitud converge, al igual que cuando en el apartado 2.2 se introdujo manualmente el valor para el estimador inicial de los parámetros.
+
+## Ejercicio 2.4
+
+La distribución exponencial es un caso especial de la distribución gamma cuando el parámetro de forma es igual a 1. Verifica este hecho gráficamente en R.
+
+Una búsqueda simple en Wikipedia de *Gamma distribution* nos permite conocer la PDF de esta, siendo:
+
+$$ f(x) = \frac{\beta ^ \alpha}{\Gamma(\alpha)} x ^{\alpha - 1} * \exp(-\beta x) $$
+
+Automáticamente, si particularizamos para el factor *shape* ($\alpha$) que sea igual a 1 obtenemos la expresión para la PDF de la distribución exponencial, ($\Gamma$ (1) = (1 - 1) ! = 0! = 1, $x ^ 0  = 1, x > 0$).
+
+Para ver esto de manera gráfica hacemos:
+
+```{r}
+shape_gamma <- c(1.5, 1.2, 1)
+rate_gamma <- c(1, 1, 1)
+rate_exp <- 1
+x <- seq(0, 10, by = 0.01)
+
+df <- data.frame(x = x,
+                 pdf_gamma = dgamma(x, shape_gamma[1], rate_gamma[1]),
+                 pdf_gamma2 = dgamma(x, shape_gamma[2], rate_gamma[2]),
+                 pdf_gamma3 = dgamma(x, shape_gamma[3], rate_gamma[3]),
+                 pdf_exp = dexp(x, rate_exp))
+
+ggplot(df, aes(x = x)) +
+  geom_line(aes(y = pdf_gamma, color = "Gamma1"), size = 1.5) +
+  geom_line(aes(y = pdf_gamma2, color = "Gamma2"), size = 1.5) +
+  geom_line(aes(y = pdf_gamma3, color = "Gamma3"), size = 1.5) +
+  geom_line(aes(y = pdf_exp, color = "Exponential"), size = 1.5) +
+  labs(y = "Density", x = "x") +
+  ggtitle("Probability Density Functions of Gamma and Exponential Distributions") +
+  scale_color_manual(values = c("Gamma1" = "blue", "Gamma2" = "orange", "Gamma3" = "green", "Exponential" = "red")) +
+  theme_minimal() +
+  theme(legend.position = "right")
+```
+Puede apareciarse como Gamma3 parece desaparecer. Esto es debido a que se encuentra solapada con la curva exponencial roja. Esto es inmediato de comprobar si se grafica la curva resta para su dominio de definición.
+
+```{r}
+plot(x, df$pdf_exp - df$pdf_gamma3, xlim = c(0, 10), ylim = c(-0.1, 0.1), type = "l", xlab = "x", ylab = "Diferencia Gamma3 con Exponential", col = "green")
+```
 
 
+## Ejercicio 2.5
 
+Dado que el modelo exponencial está anidado en el modelo gamma, podemos realizar la prueba de razón de verosimilitud (likelihood-ratio test) para seleccionar entre los dos modelos. Realiza la prueba de razón de verosimilitud en R y reporta el valor de p resultante.
 
+$H_0$: el modelo $\mathcal{M}_1$ es suficiente para describir los datos.
+
+# Ejercicio 4. Conjunto de datos de células cerebrales
