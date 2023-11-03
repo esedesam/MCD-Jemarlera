@@ -2,7 +2,9 @@
 title: "Practica_2"
 author: "Jesús Martínez Leal"
 date: "2023-11-02"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
@@ -22,7 +24,7 @@ pacman::p_load(readr, stringr, tidyr, dplyr, readxl, ggplot2, forcats, MASS)
 
 # Ejercicio 2. Un estudio sobre datos de neuronas
 
-Las neuronas funcioanng enerando y propagando potenciales de acción, llamados "spikes". El intervalo de tiempo entre dos spikes adyacentes, o inter-spikes interval (ISI), se utiliza a menudo en la neurocicencia computacional. En el archivo *neuronspikes.txt* puedes encontrar algunas mediciones de ISI.
+Las neuronas funcionan generando y propagando potenciales de acción, llamados "spikes". El intervalo de tiempo entre dos spikes adyacentes, o inter-spikes interval (ISI), se utiliza a menudo en la neurocicencia computacional. En el archivo *neuronspikes.txt* puedes encontrar algunas mediciones de ISI.
 
 Carga los datos en R y completa los siguienes ejercicios:
 
@@ -162,6 +164,7 @@ $$ \alpha = \beta \mathbb{E (X)} $$
 alpha_est <- beta_est * mean(isidata$isi)
 alpha_est
 ```
+
 ```{r}
 mllk <- function(params, data) {
   shape <- params[1]
@@ -227,4 +230,128 @@ Dado que el modelo exponencial está anidado en el modelo gamma, podemos realiza
 
 $H_0$: el modelo $\mathcal{M}_1$ es suficiente para describir los datos.
 
+
+
+
+
 # Ejercicio 4. Conjunto de datos de células cerebrales
+
+Continuamos el estudio del conjunto de datos de células cerebrales del Instituto Allen. 
+
+```{r}
+path <- "./data/cell_types.csv"
+cell <- read.csv(path, sep = ",", dec = ".", na.strings = "")
+```
+
+## Ejercicio 4.1
+
+**Enunciado**.
+
+Encuentra numéricamente las estimaciones MLE de los parámetros de la distribución log-normal para las observaciones de *ramp spike time* (en R está implementada la log-normal dlnorm).
+
+**Resolución**.
+
+De manera análoga a como se ha procedido en ejercicios anteriores estimamos estos parámetros con la siguiente algoritmia:
+
+```{r}
+mllk_lnorm <- function(params, data) {
+  meanlog <- params[1]
+  sdlog <- params[2]
+  -sum(dlnorm(data, meanlog = meanlog, sdlog = sdlog, log = TRUE))
+}
+```
+
+```{r}
+ramp <- na.omit(cell$ef__peak_t_ramp) # quito los NA para que no haya problemas
+
+paramsLognormal <- optim(c(6, 4), f = mllk_lnorm, data = ramp, method = c("Nelder-Mead"))$par
+names(paramsLognormal) <- c("meanlog", "sdlog")
+print(paramsLognormal)
+
+hist(ramp, breaks = 10, probability = TRUE, ylim = c(0, 0.2))
+curve(dlnorm(x, meanlog = params[1], sdlog = params[2]), add = TRUE, col = "blue")
+legend("topright", legend = paste("meanlog =", round(params[1], 2), ", sdlog =", round(params[2], 2)), col = "blue", lty = 1)
+
+```
+
+## Ejercicio 4.2
+
+**Enunciado**.
+
+Como su nombre sugiere, la distribución log-normal está relacionada con la distribución Gaussiana. En particular, si $X$ es una distribución lognormal con parámetros μ y σ, entonces log(X) es una distribución normal con valor medio μ y desviación estándar σ. Ahora probaremos este hecho empíricamente. Transforma las observaciones de ”ramp spike time” utilizando el logaritmo y luego obtén la MLE de los parámetros para una distribución Gaussiana utilizando los datos transformados. Comprueba que los resultados que obtengas sean iguales a las estimaciones MLE obtenidas numéricamente en el punto 4.1.
+
+**Resolución**
+
+```{r}
+mllk_norm <- function(params, data) {
+  mean <- params[1]
+  sd <- params[2]
+  -sum(dnorm(data, mean = mean, sd = sd, log = TRUE))
+}
+```
+
+```{r}
+logramp <- log(ramp)
+
+paramsNormal <- optim(c(6, 4), f = mllk_norm, data = logramp, method = c("Nelder-Mead"))$par
+names(paramsNormal) <- c("mean", "sd")
+print(paramsNormal)
+
+# Se obtienen resultados prácticamente iguales? 
+# Calculamos el error relativo
+
+tol <- 1e-3
+
+if(all(abs(paramsNormal - paramsLognormal) / paramsNormal < c(tol, tol)) == TRUE) {cat("Se ha probado empíricamente que los resultados obtenidos son iguales (o casi iguales por temas numéricos).")}
+```
+
+## Ejercicio 4.3
+
+**Enunciado**
+
+Encuentra ahora las estimaciones MLE de los parámetros de la distribución log-normal utilizando solo las observaciones de seres humanos masculinos y seres humanos femeninos. Grafica las dos densidades log-normal obtenidas en la misma gráfica.
+
+**Resolución**
+
+Filtramos primeramente haciendo uso de dplyr el dataframe para tener las observaciones de *males* y *females* por separado.
+
+```{r}
+cell_male <- cell %>%
+  filter(donor__sex == "Male")
+
+cell_female <- cell %>%
+  filter(donor__sex == "Female")
+```
+
+Pasamos ahora a la resolución del ejercicio, análogamente a como se hizo en apartados anteriores.
+
+```{r}
+ramp_male <- na.omit(cell_male$ef__peak_t_ramp) 
+ramp_female <- na.omit(cell_female$ef__peak_t_ramp)
+
+
+paramsLognormal_male <- optim(c(6, 4), f = mllk_lnorm, data = ramp_male, method = c("Nelder-Mead"))$par
+paramsLognormal_female <- optim(c(6, 4), f = mllk_lnorm, data = ramp_female, method = c("Nelder-Mead"))$par
+
+parameter_matrix <- matrix(0, nrow = 2, ncol = 2)
+parameter_matrix[1, ] <- paramsLognormal_male
+parameter_matrix[2, ] <- paramsLognormal_female
+rownames(parameter_matrix) <- c("Male", "Female")
+colnames(parameter_matrix) <- c("meanlog", "sdlog")
+
+kable(parameter_matrix)
+```
+
+Por último, graficamos:
+
+```{r}
+x <- seq(0, max(ramp_male), by = 0.01)
+
+plot(x, dlnorm(x, meanlog = paramsLognormal_male[1], sdlog = paramsLognormal_male[2]), type = "l", col = "blue", lwd = 2, xlab = "x", ylab = "Density", xlim = c(0, max(ramp_male)), ylim = c(0, 0.15))
+lines(x, dlnorm(x, meanlog = paramsLognormal_female[1], sdlog = paramsLognormal_female[2]), col = "red", lwd = 2)
+
+legend("topright", legend = c("Male", "Female"), col = c("blue", "red"), lwd = 2)
+title("Densidades Log-Normal para Male y Female")
+
+```
+
