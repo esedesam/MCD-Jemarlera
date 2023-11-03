@@ -352,6 +352,63 @@ lines(x, dlnorm(x, meanlog = paramsLognormal_female[1], sdlog = paramsLognormal_
 
 legend("topright", legend = c("Male", "Female"), col = c("blue", "red"), lwd = 2)
 title("Densidades Log-Normal para Male y Female")
+```
+Vemos que a simple vista la diferencia es bastante escasa.
 
+## Ejercicio 4.4
+
+**Enunciado**
+
+Estima el error estándar del estimador MLE de $\mu$ para la distribución log-normal aplicada a los datos de *ramp spike time*.
+
+**Resolución**
+
+Haremos uso del método de bootstrap, de tal forma que generaremos un muestreo (con reemplazo) de n puntos de nuestra muestra. Con cada una de estas muestras se halla el parámetro estimado con MLE, de tal forma que obtenemos una distribución de ellos al final, con los que podemos tener una estadística.
+
+```{r}
+n <- length(ramp)
+
+#Método de bootstrap para sacar distribución de mu
+
+mu_sample <- replicate(100, {
+  aux <- sample(ramp, size = length(ramp), replace = T)
+  params_i <- optim(c(1.5, 0.5), f = mllk_lnorm, data = aux, method = c("Nelder-Mead"))$par[1]
+  
+  return(params_i)
+})
+
+# Error estándar para mu tomada como la desviación estándar de los valores de mu_sample
+
+mu_se <- sd(mu_sample)
+```
+
+## Ejercicio 4.5
+
+**Enunciado**
+
+Obtén un intervalo de confianza del 95% para el parámetro $\mu$ (prueba diferentes métodos).
+
+**Resolución**
+
+Podemos estimarlo con 2 métodos diferentes utilizando bootstrap:
+
+- Con intervalo normal:
+
+$$ (\hat{\theta} - z_{\alpha/2} \hat{se}_{boot}, \ \hat{\theta} + z_{\alpha/2} \hat{se}_{{boot}} ) $$
+```{r}
+alpha <- 0.05
+za2 <- qnorm(alpha / 2, lower.tail = F)
+
+mu_trust <- paramsLognormal[1] + c(-1, 1) * za2 * mu_se
+cat("(", mu_trust[1], ",", mu_trust[2], ")", "es el intervalo de confianza del 95% para mu.")
+```
+- Con intervalo de percentil bootstrap:
+
+$$ C_n = (\theta^{*}_{\alpha / 2}, \theta^{*}_{1 - \alpha / 2}), $$
+donde $\theta^*_{\alpha / 2}$ es el cuantil empírico obtenido a partir de la muestra bootstrap de $\hat{\theta}^{*}.$
+
+```{r}
+mu_perct <- quantile(mu_sample, probs = c(alpha / 2, 1- alpha / 2))
+cat("(", mu_perct[1], ",", mu_perct[2], ")", "es el intervalo de confianza del 95% para mu.")
 ```
 
