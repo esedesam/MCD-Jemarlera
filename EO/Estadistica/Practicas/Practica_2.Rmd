@@ -10,7 +10,6 @@ library(ggplot2)
 set.seed(33)
 ```
 
-
 Cargue los datos en el archivo **angles.txt**; los datos han sido generados a partir de una densidad $f(x|k) ∝ sin(x)^k$ en el intervalo $[0, π]$ $(f(x|k) = 0$ fuera del intervalo $[0, π]$). Notación: ∝ significa *proporcional a*, lo que significa que $f(x|k) = C_ksin(x)^k$, donde $C_k$ es una constante de normalización apropiada.
 
 ```{r}
@@ -26,12 +25,15 @@ a <- as.numeric(a)
 # Ejercicio 1
 
 ## Ejercicio 1.0 
-¿Cómo puede calcular la constante de normalización $C_k?$?
+¿Cómo puede calcular la constante de normalización $C_k   $?
 
 Para calcular la constante de normalización $C_k$ el método de los momentos.
 
 $$\mathbb{E}(X) = \int_{0}^\pi xC_ksin(x)^k dx$$
-## Ejercicio 1.1 ¿El modelo es paramétrico? ¿Cuáles son los parámetros del modelo?
+
+## Ejercicio 1.1
+
+¿El modelo es paramétrico? ¿Cuáles son los parámetros del modelo?
 
 El modelo es paramétrico porque se puede parametrizar con un número finito de variables. En este caso el parámetros es **k**.
 
@@ -52,11 +54,7 @@ Y se implementaría en R como sigue:
 ```{r}
 C_norm <- function(k, obs) sin(obs)**k
 
-
 l_n <- function(k, obs) -sum(log(1/integrate(C_norm, lower = 0, upper = 3.14, k = k)$value) + k*log(sin(obs)))
-
-
-
 ```
 
 ## Ejercicio 1.3
@@ -80,7 +78,6 @@ ggplot(df_a, aes(a)) +
   geom_histogram(aes(y = after_stat(density)), colour = "black", fill = "white") +
   geom_density(alpha = .2, fill="red") +
   labs(title = "Histogram and Density Plot of Maximum Likelihood Estimator", x = "Data", y = "Density")
-
 ```
 
 ## Ejercicio 1.5
@@ -104,7 +101,6 @@ k_trust <- k_opt$minimum + c(-1,1)*za2*k_std
 
 #Intervalo de percentil
 k_perct <- quantile(v_sample, probs = c(alpha/2, 1-alpha/2))
-
 ```
 
 ## Ejercicio 1.6
@@ -117,7 +113,134 @@ w <- (k_opt$minimum - k_0)/k_std
 p_value <- 2*pnorm(-abs(w))
 
 cat("Dado que el p-value de la prueba de Wald es", p_value, "podemos rechazar la hipótesis nula (H0 : k ≤ 10)")
-
-
 ```
 
+# Ejercicio 3
+
+Además de las distribuciones exponencial y gamma, la distribución inversa Gaussiana es otro modelo ampliamente utilizado para los intervalos entre eventos. Describe el tiempo de primer paso de un movimiento browniano unidimensional sujeto a un valor umbral fijo. La función de densidad de probabilidad se define como:
+
+$$
+f(x|\mu, \lambda) =
+\left( \frac{\lambda}{2\pi x^3} \right)^{1/2} \cdot
+\exp{\left( \frac{-\lambda(x-\mu )^ {2}}{2\mu^2 x} \right)}
+$$
+
+## Ejercicio 3.1
+
+Escriba (analíticamente) la fórmula para el logaritmo de la verosimilitud dadas n observaciones i.i.d.
+
+La función de log-verosimilitud es
+
+\begin{align}
+l_n (\mu, \lambda) =
+\ln{\left[ \mathcal{L}_n (\mu, \lambda) \right]} =
+\ln{\left[\prod_{i = 1}^n \mathscr{f}(x_i|\mu, \lambda) \right]} =
+\sum_{i = 1}^n \ln{\left[ \mathscr{f}(x_i|\mu, \lambda) \right]} =
+\sum_{i = 1}^n \ln{\left[
+  \left( \frac{\lambda}{2\pi x_i^3} \right)^{1/2} \cdot
+  \exp{\left( \frac{-\lambda(x_i-\mu )^ {2}}{2\mu^2 x_i} \right)} \right]} = \\
+\sum_{i = 1}^n \left\{ \ln{\left[
+  \left( \frac{\lambda}{2\pi x_i^3} \right)^{1/2} \right]} -
+  \frac{-\lambda(x_i-\mu )^ {2}}{2\mu^2 x_i} \right\} =
+\sum_{i = 1}^n \left[ \frac{1}{2} \ln{
+  \left( \frac{\lambda}{2\pi x_i^3} \right)} -
+  \frac{\lambda(x_i-\mu )^ {2}}{2\mu^2 x_i} \right]
+\end{align}
+
+## Ejercicio 3.2
+
+Intente derivar la fórmula de los estimadores de máxima verosimilitud para $\mu$ y $\lambda$ (si no es capaz, vaya al punto 3.4).
+
+La derivada respecto de $\mu$ es
+
+$$
+\frac{\partial}{\partial \mu} l_n (\mu, \lambda) =
+\sum_{i=1}^n \left[
+  \frac{1}{2} \ln{\left( \frac{\lambda}{2\pi x_i^3} \right)} -
+  \frac{\lambda(x_i-\mu)}{\mu^2 x_i} \right]
+$$
+
+La derivada respecto de $\lambda$ es
+
+$$
+\frac{\partial}{\partial \lambda} l_n (\mu, \lambda) =
+\sum_{i=1}^n \left[ \frac{\lambda}{2} -
+\frac{\left(x_i-\mu\right)^2}{2\mu^2 x_i} \right] =
+n\frac{\lambda}{2} - \sum_{i=1}^n \frac{\left(x_i-\mu\right)^2}{2\mu^2 x_i}
+$$
+
+## Ejercicio 3.3
+
+Aplique los estimadores de MLE en el paso anterior a los datos ISI experimentales, es decir, calcule las estimaciones teóricas de $\mu$ y $\lambda$ para los datos ISI.
+
+Resolviendo el sistema de ecuaciones, obtenemos los estimadores
+
+$$
+\hat{\mu} = \frac{\sum_{i=n}^n x_i}{n} \ , \
+\frac{1}{\hat{\lambda}} =
+  \frac{1}{n} \sum_{i=n}^n \left( \frac{1}{x_i} - \frac{1}{\hat{\mu}} \right)
+$$
+
+```{r}
+isi <- read.table("./data/neuronspikes.txt", col.names = "isi")[[1]]
+
+mu_est <- sum(isi) / length(isi)
+
+lambda_est <- ( sum(1 / isi - 1 / mu_est) / length(isi) ) ^ (-1)
+```
+
+Los resultados obtenidos para los estimadores son: $\hat{\mu} =$ `r mu_est` y $\hat{\lambda} =$ `r lambda_est`.
+
+## Ejercicio 3.4
+
+Encuentre los estimadores de máxima verosimilitud utilizando métodos numéricos.
+
+Usamos la función `dinvgauss()` del paquete `statmod`.
+
+```{r}
+if (!require(statmod)) {
+  install.packages("statmod")
+  library(statmod)
+}
+library(kableExtra)
+library(greekLetters)
+
+mllk <- function(params, data) {
+  mean <- params[1]
+  shape <- params[2]
+  -sum(dinvgauss(data, mean = mean, shape = shape, log = TRUE))
+}
+
+num_est <- optim(c(1, 1), f = mllk, data = isi, method = c("Nelder-Mead"))
+
+results <- data.frame(
+  data = matrix(
+    data = c(mu_est, lambda_est, num_est$par),
+    ncol = 2,
+    byrow = TRUE))
+rownames(results) <- c("Teórico", "Numérico")
+colnames(results) <- c(greeks("mu"), greeks("lambda"))
+
+results %>%
+  kbl(caption = "Resultados de los estimadores.") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+## Ejercicio 3.5
+
+Grafique la densidad estimada de la distribución inversa Gaussiana sobre el histograma de los datos ISI y con la estimación de densidad de kernel. Si puede encontrar estimadores de momentos de los parámetros, puede usarlos como puntos iniciales para la optimización numérica.
+
+```{r}
+hist(isi, breaks = 20, freq = FALSE, ylim = c(0, 1.5),
+     xlab = " Intervalo de tiempo entre dos spikes adyacentes",
+     ylab = "Densidad", main = "Datos ISI")
+lines(isi,dinvgauss(isi, mu_est, lambda_est), col = "red", lwd = 2)
+box()
+
+legend_labels <- c("Histograma de ISI", "Densidad de la dist. inv. Gaussiana")
+legend("topright", legend = legend_labels,
+       fill = c("gray", NA),
+       border = c("black", NA),
+       lwd = c(NA, 2),
+       col = c(NA, "red"))
+```
