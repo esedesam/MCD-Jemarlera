@@ -76,35 +76,28 @@ $$
 $$
 
 ```{r}
+isi <- read.table("./data/neuronspikes.txt", col.names = "isi")[[1]]
+
+mu_est <- sum(isi) / length(isi)
+
+lambda_est <- ( sum(1 / isi - 1 / mu_est) / length(isi) ) ^ (-1)
+```
+
+Los resultados obtenidos para los estimadores son: $\hat{\mu} =$ `r mu_est` y $\hat{\lambda} =$ `r lambda_est`.
+
+## Ejercicio 3.4
+
+Encuentre los estimadores de máxima verosimilitud utilizando métodos numéricos.
+
+Usamos la función `dinvgauss()` del paquete `statmod`.
+
+```{r}
 if (!require(statmod)) {
   install.packages("statmod")
   library(statmod)
 }
-
-
-isi <- read.table("./data/neuronspikes.txt", col.names = "isi")[[1]]
-
-# params = (mu, lambda)
-
-d_mu <- function(params, x) {
-  mu <- params[1]
-  lambda <- params[2]
-  value <- sum(log(lambda / (2 * pi * x^3)) / 2 - lambda * (x - mu) / (mu^2 * x))
-  return(value)
-}
-
-d_lambda <- function(params, x) {
-  mu <- params[1]
-  lambda <- params[2]
-  value <- length(x) * lambda / 2 - sum( (x - mu)^2 / (2 * mu^2 * x) )
-  return(value)
-}
-
-eq_system <- function(params, x) {
-  eq1 <- d_mu(params, x)
-  eq2 <- d_lambda(params, x)
-  return(c(eq1, eq2))
-}
+library(kableExtra)
+library(greekLetters)
 
 mllk <- function(params, data) {
   mean <- params[1]
@@ -112,28 +105,36 @@ mllk <- function(params, data) {
   -sum(dinvgauss(data, mean = mean, shape = shape, log = TRUE))
 }
 
-optim(c(1, 1), f = mllk, data = isi, method = c("Nelder-Mead"))
+num_est <- optim(c(1, 1), f = mllk, data = isi, method = c("Nelder-Mead"))
+
+results <- data.frame(
+  data = matrix(
+    data = c(mu_est, lambda_est, num_est$par),
+    ncol = 2,
+    byrow = TRUE))
+rownames(results) <- c("Teórico", "Numérico")
+colnames(results) <- c(greeks("mu"), greeks("lambda"))
+
+results %>%
+  kbl(caption = "Resultados de los estimadores.") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
 ```
+
+## Ejercicio 3.5
+
+Grafique la densidad estimada de la distribución inversa Gaussiana sobre el histograma de los datos ISI y con la estimación de densidad de kernel. Si puede encontrar estimadores de momentos de los parámetros, puede usarlos como puntos iniciales para la optimización numérica.
 
 ```{r}
-if (!require(MASS)) {
-  install.packages("MASS")
-  library(MASS)
-}
-# Ajuste de los datos a función que especifiquemos
+hist(isi, breaks = 20, freq = FALSE, ylim = c(0, 1.5),
+     xlab = " Intervalo de tiempo entre dos spikes adyacentes",
+     ylab = "Densidad", main = "Datos ISI")
+lines(isi,dinvgauss(isi, mu_est, lambda_est), col = "red", lwd = 2)
+box()
 
-fit <- fitdistr(isi, "")
-
-# Obtener parámetros
-estimated_shape <- fit$estimate["shape"]
-estimated_rate <- fit$estimate["rate"]
-
-cat("El valor de shape estimado es:", estimated_shape)
-cat("\nEl valor de rate estimado es:", estimated_rate)
-
-hist(isidata$isi , breaks = 10, probability = TRUE)
-curve(dgamma(x, shape = estimated_shape, rate = estimated_rate), add = TRUE, col = "blue")
+legend_labels <- c("Histograma de ISI", "Densidad de la dist. inv. Gaussiana")
+legend("topright", legend = legend_labels,
+       fill = c("gray", NA),
+       border = c("black", NA),
+       lwd = c(NA, 2),
+       col = c(NA, "red"))
 ```
-
-
-######
