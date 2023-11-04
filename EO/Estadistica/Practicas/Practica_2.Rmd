@@ -5,9 +5,18 @@ date: "2023-11-02"
 output: html_document
 ---
 
-```{r}
-library(ggplot2)
-set.seed(33)
+```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
+# Configuración general de chunks
+library(knitr)
+options(width = 100)
+knitr::opts_chunk$set(echo = T, message = T, error = F, warning = F, comment = NA, dpi = 100, tidy = T, cache.path = '.cache/', fig.path = './figure/', include = T)
+```
+Como es habitual, cargamos las librerías que necesitamos al inicio del documento.
+
+```{r librerias, message = T, include = T, echo = T}
+# Carga de librerías necesarias con pacman
+library(pacman)
+pacman::p_load(readr, stringr, tidyr, dplyr, readxl, ggplot2, forcats, MASS)
 ```
 
 Cargue los datos en el archivo **angles.txt**; los datos han sido generados a partir de una densidad $f(x|k) ∝ sin(x)^k$ en el intervalo $[0, π]$ $(f(x|k) = 0$ fuera del intervalo $[0, π]$). Notación: ∝ significa *proporcional a*, lo que significa que $f(x|k) = C_ksin(x)^k$, donde $C_k$ es una constante de normalización apropiada.
@@ -114,6 +123,215 @@ p_value <- 2*pnorm(-abs(w))
 
 cat("Dado que el p-value de la prueba de Wald es", p_value, "podemos rechazar la hipótesis nula (H0 : k ≤ 10)")
 ```
+
+# Ejercicio 2. Un estudio sobre datos de neuronas
+
+Las neuronas funcionan generando y propagando potenciales de acción, llamados "spikes". El intervalo de tiempo entre dos spikes adyacentes, o inter-spikes interval (ISI), se utiliza a menudo en la neurocicencia computacional. En el archivo *neuronspikes.txt* puedes encontrar algunas mediciones de ISI.
+
+Carga los datos en R y completa los siguienes ejercicios:
+
+```{r}
+isidata <- read.table("./data/neuronspikes.txt", col.names = "isi")
+```
+
+## Ejercicio 2.1. 
+
+Si asumimos que las observaciones de ISI son i.i.d. siguen una distribución exponencial con parámetro $\lambda$, calcule el estimador de máxima verosimilitud de $\lambda$.
+
+Sea $X_1, ..., X_n \sim \exp({\lambda})$ ($\lambda$ > 0) donde sabemos que la PDF es $f(x|\lambda) = \lambda \exp(-\lambda x)$.
+
+
+La verosimilitud por definición:
+
+$$\mathcal{L}_n(\lambda) = \prod_{i = 1}^n f(X_i|\lambda) = \prod_{i = 1}^n \lambda \exp(-\lambda X_i)$$
+
+Nos será más sencillo trabajar con la función log-verosoimiltud por las propiedades de la función exponencial:
+
+
+$$ℓ_n(\lambda) = \ln{\mathcal{L_n(\lambda)}} = \sum_{i = 1}^n (\ln(\lambda) + (-\lambda X_i)) = n \ln(\lambda) - \lambda \sum_{i = 1}^n(X_i)$$
+Procedemos a calcular el valor de $\lambda$ que permite maximizar esta función, requiriendo acudir al cálculo diferencial.
+
+Igualamos la primera derivada a cero para hallar los puntos críticos:
+
+$$\frac{dℓ_n}{d\lambda} = \frac{n}{\lambda} - \sum_{i = 1} ^n (X_i) = 0 $$
+Obtenemos despejando para $\lambda$:
+
+$$\lambda = \frac{n}{\sum_{i = 1}^n} = \frac{1}{\bar{X}}$$
+Para verificar que es un máximo acudimos al criterio de la segunda derivada, que nos ofrece:
+
+$$ \frac{d^2ℓ_n}{d\lambda^2} = - \frac{n}{\lambda ^2}, $$, de tal forma que se ve que es siempre negativo dada nuestra restricción en el parámetro $\lambda$ de ser positivo.
+
+Podemos entonces asegurar que el estimador de máxima verosimilitud de nuestro parámetro es:
+
+$$\hat{\lambda} = \frac{1}{\bar{X}} $$
+Así pues, tendremos:
+
+```{r}
+lambda_hat <- 1 / mean(isidata$isi)
+cat("El parámetro estimado es", lambda_hat, "\n")
+```
+```{r}
+mllk <- function(rate, data) {
+  -sum((dexp(data, rate = rate, log = TRUE)))
+}
+
+optimize(f = mllk, data = isidata$isi, interval = c(0, 10))
+
+rate_num_est <- optimize(f = mllk, data = isidata$isi, interval = c(0, 10))$minimum
+
+hist(isidata$isi, breaks = 10, probability = TRUE)
+curve(dexp(x, rate_num_est), add = TRUE, col = "blue")
+```
+
+Con una función implementada en R directamente nos ahorraríamos esto:
+
+```{r}
+data <- isidata$isi  
+
+# Ajuste de los datos a función que especifiquemos
+fit <- fitdistr(data, "exponential")
+
+# Obtener parámetros
+estimated_rate <- fit$estimate
+
+# Print the results
+cat("El parámetro estimado es", estimated_rate, "\n")
+```
+
+## Ejercicio 2.2
+
+Ahora, asumiendo que las observaciones de ISI son i.i.d. y siguen una distribución gamma con paráemtros $\alpha$ (*shape*) y $\beta$ (*rate*), encuentre los estimadores de máxima verosimiltud de los parámetros $\alpha$ y $\beta$.
+
+[here](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&ved=2ahUKEwiQuY3QqaWCAxV0UKQEHfzsA3YQFnoECA0QAw&url=https%3A%2F%2Fzenodo.org%2Frecord%2F4019900%2Ffiles%2FMLE_Gamma.pdf&usg=AOvVaw0jf-TZxBuj4LJFZZCs0ofh&opi=89978449)
+
+Sacaremos numéricamente estos estimadores utilizando una función implementada en R:
+
+```{r}
+mllk <- function(params, data) {
+  shape <- params[1]
+  rate <- params[2]
+  -sum(dgamma(data, shape = shape, rate = rate, log = TRUE))
+}
+
+params <- optim(c(1, 1), f = mllk, data = isidata$isi, method = c("Nelder-Mead"))$par
+
+hist(isidata$isi , breaks = 10, probability = TRUE)
+curve(dgamma(x, shape = params[1], rate = params[2]), add = TRUE, col = "blue")
+
+```
+
+```{r}
+data <- isidata$isi  
+
+# Ajuste de los datos a función que especifiquemos
+
+fit <- fitdistr(data, "gamma")
+
+# Obtener parámetros
+estimated_shape <- fit$estimate["shape"]
+estimated_rate <- fit$estimate["rate"]
+
+cat("El valor de shape estimado es:", estimated_shape)
+cat("\nEl valor de rate estimado es:", estimated_rate)
+
+hist(isidata$isi , breaks = 10, probability = TRUE)
+curve(dgamma(x, shape = estimated_shape, rate = estimated_rate), add = TRUE, col = "blue")
+```
+
+## Ejercicio 2.3
+
+Para la distribución gamma, conocemos las fórmulas de la media y la varianza, como sigue,
+
+$$ \mathbb{E} (X) = \frac{\alpha}{\beta} $$
+
+$$\mathbb{V} (X) = \frac{\alpha}{\beta^2}$$
+
+Tratar de encontrar el estimador de momentos de $\alpha$ y $\beta$. El estimador de momentos puede utilizarse para encontrar la primera estimación y para inicializar el algoritmo iterativo de MLE.
+
+Tenemos las dos primeras ecuaciones del método de los momentos, por lo que tenemos lo siguiente. Si introducimos la primera ecuación en la segunda:
+
+$$ \beta = \frac{\mathbb{E (X)}}{\mathbb{V (X)}} $$
+Esto en R sería:
+
+```{r}
+beta_est <- mean(isidata$isi) / var(isidata$isi)
+beta_est
+```
+
+Para $\alpha$ solamente resta sustituir:
+
+$$ \alpha = \beta \mathbb{E (X)} $$
+
+```{r}
+alpha_est <- beta_est * mean(isidata$isi)
+alpha_est
+```
+
+```{r}
+mllk <- function(params, data) {
+  shape <- params[1]
+  rate <- params[2]
+  -sum(dgamma(data, shape = shape, rate = rate, log = TRUE))
+}
+
+params <- optim(c(alpha_est, beta_est), f = mllk, data = isidata$isi, method = c("Nelder-Mead"))$par
+
+params
+
+hist(isidata$isi , breaks = 10, probability = TRUE)
+curve(dgamma(x, shape = params[1], rate = params[2]), add = TRUE, col = "blue")
+```
+
+Vemos cómo la estimación ofrecida por el método de máxima verosimilitud converge, al igual que cuando en el apartado 2.2 se introdujo manualmente el valor para el estimador inicial de los parámetros.
+
+## Ejercicio 2.4
+
+La distribución exponencial es un caso especial de la distribución gamma cuando el parámetro de forma es igual a 1. Verifica este hecho gráficamente en R.
+
+Una búsqueda simple en Wikipedia de *Gamma distribution* nos permite conocer la PDF de esta, siendo:
+
+$$ f(x) = \frac{\beta ^ \alpha}{\Gamma(\alpha)} x ^{\alpha - 1} * \exp(-\beta x) $$
+
+Automáticamente, si particularizamos para el factor *shape* ($\alpha$) que sea igual a 1 obtenemos la expresión para la PDF de la distribución exponencial, ($\Gamma$ (1) = (1 - 1) ! = 0! = 1, $x ^ 0  = 1, x > 0$).
+
+Para ver esto de manera gráfica hacemos:
+
+```{r}
+shape_gamma <- c(1.5, 1.2, 1)
+rate_gamma <- c(1, 1, 1)
+rate_exp <- 1
+x <- seq(0, 10, by = 0.01)
+
+df <- data.frame(x = x,
+                 pdf_gamma = dgamma(x, shape_gamma[1], rate_gamma[1]),
+                 pdf_gamma2 = dgamma(x, shape_gamma[2], rate_gamma[2]),
+                 pdf_gamma3 = dgamma(x, shape_gamma[3], rate_gamma[3]),
+                 pdf_exp = dexp(x, rate_exp))
+
+ggplot(df, aes(x = x)) +
+  geom_line(aes(y = pdf_gamma, color = "Gamma1"), size = 1.5) +
+  geom_line(aes(y = pdf_gamma2, color = "Gamma2"), size = 1.5) +
+  geom_line(aes(y = pdf_gamma3, color = "Gamma3"), size = 1.5) +
+  geom_line(aes(y = pdf_exp, color = "Exponential"), size = 1.5) +
+  labs(y = "Density", x = "x") +
+  ggtitle("Probability Density Functions of Gamma and Exponential Distributions") +
+  scale_color_manual(values = c("Gamma1" = "blue", "Gamma2" = "orange", "Gamma3" = "green", "Exponential" = "red")) +
+  theme_minimal() +
+  theme(legend.position = "right")
+```
+Puede apareciarse como Gamma3 parece desaparecer. Esto es debido a que se encuentra solapada con la curva exponencial roja. Esto es inmediato de comprobar si se grafica la curva resta para su dominio de definición.
+
+```{r}
+plot(x, df$pdf_exp - df$pdf_gamma3, xlim = c(0, 10), ylim = c(-0.1, 0.1), type = "l", xlab = "x", ylab = "Diferencia Gamma3 con Exponential", col = "green")
+```
+
+
+## Ejercicio 2.5
+
+Dado que el modelo exponencial está anidado en el modelo gamma, podemos realizar la prueba de razón de verosimilitud (likelihood-ratio test) para seleccionar entre los dos modelos. Realiza la prueba de razón de verosimilitud en R y reporta el valor de p resultante.
+
+$H_0$: el modelo $\mathcal{M}_1$ es suficiente para describir los datos.
+
 
 # Ejercicio 3
 
@@ -243,4 +461,435 @@ legend("topright", legend = legend_labels,
        border = c("black", NA),
        lwd = c(NA, 2),
        col = c(NA, "red"))
+```
+# Ejercicio 4. Conjunto de datos de células cerebrales
+
+Continuamos el estudio del conjunto de datos de células cerebrales del Instituto Allen. 
+
+```{r}
+path <- "./data/cell_types.csv"
+cell <- read.csv(path, sep = ",", dec = ".", na.strings = "")
+```
+
+## Ejercicio 4.1
+
+**Enunciado**.
+
+Encuentra numéricamente las estimaciones MLE de los parámetros de la distribución log-normal para las observaciones de *ramp spike time* (en R está implementada la log-normal dlnorm).
+
+**Resolución**.
+
+De manera análoga a como se ha procedido en ejercicios anteriores estimamos estos parámetros con la siguiente algoritmia:
+
+```{r}
+mllk_lnorm <- function(params, data) {
+  meanlog <- params[1]
+  sdlog <- params[2]
+  -sum(dlnorm(data, meanlog = meanlog, sdlog = sdlog, log = TRUE))
+}
+```
+
+```{r}
+ramp <- na.omit(cell$ef__peak_t_ramp) # quito los NA para que no haya problemas
+
+paramsLognormal <- optim(c(6, 4), f = mllk_lnorm, data = ramp, method = c("Nelder-Mead"))$par
+names(paramsLognormal) <- c("meanlog", "sdlog")
+print(paramsLognormal)
+
+hist(ramp, breaks = 10, probability = TRUE, ylim = c(0, 0.2))
+curve(dlnorm(x, meanlog = params[1], sdlog = params[2]), add = TRUE, col = "blue")
+legend("topright", legend = paste("meanlog =", round(params[1], 2), ", sdlog =", round(params[2], 2)), col = "blue", lty = 1)
+
+```
+
+## Ejercicio 4.2
+
+**Enunciado**.
+
+Como su nombre sugiere, la distribución log-normal está relacionada con la distribución Gaussiana. En particular, si $X$ es una distribución lognormal con parámetros μ y σ, entonces log(X) es una distribución normal con valor medio μ y desviación estándar σ. Ahora probaremos este hecho empíricamente. Transforma las observaciones de ”ramp spike time” utilizando el logaritmo y luego obtén la MLE de los parámetros para una distribución Gaussiana utilizando los datos transformados. Comprueba que los resultados que obtengas sean iguales a las estimaciones MLE obtenidas numéricamente en el punto 4.1.
+
+**Resolución**
+
+```{r}
+mllk_norm <- function(params, data) {
+  mean <- params[1]
+  sd <- params[2]
+  -sum(dnorm(data, mean = mean, sd = sd, log = TRUE))
+}
+```
+
+```{r}
+logramp <- log(ramp)
+
+paramsNormal <- optim(c(6, 4), f = mllk_norm, data = logramp, method = c("Nelder-Mead"))$par
+names(paramsNormal) <- c("mean", "sd")
+print(paramsNormal)
+
+# Se obtienen resultados prácticamente iguales? 
+# Calculamos el error relativo
+
+tol <- 1e-3
+
+if(all(abs(paramsNormal - paramsLognormal) / paramsNormal < c(tol, tol)) == TRUE) {cat("Se ha probado empíricamente que los resultados obtenidos son iguales (o casi iguales por temas numéricos).")}
+```
+
+## Ejercicio 4.3
+
+**Enunciado**
+
+Encuentra ahora las estimaciones MLE de los parámetros de la distribución log-normal utilizando solo las observaciones de seres humanos masculinos y seres humanos femeninos. Grafica las dos densidades log-normal obtenidas en la misma gráfica.
+
+**Resolución**
+
+Filtramos primeramente haciendo uso de dplyr el dataframe para tener las observaciones de *males* y *females* por separado.
+
+```{r}
+cell_male <- cell %>%
+  filter(donor__sex == "Male")
+
+cell_female <- cell %>%
+  filter(donor__sex == "Female")
+```
+
+Pasamos ahora a la resolución del ejercicio, análogamente a como se hizo en apartados anteriores.
+
+```{r}
+ramp_male <- na.omit(cell_male$ef__peak_t_ramp) 
+ramp_female <- na.omit(cell_female$ef__peak_t_ramp)
+
+
+paramsLognormal_male <- optim(c(6, 4), f = mllk_lnorm, data = ramp_male, method = c("Nelder-Mead"))$par
+paramsLognormal_female <- optim(c(6, 4), f = mllk_lnorm, data = ramp_female, method = c("Nelder-Mead"))$par
+
+parameter_matrix <- matrix(0, nrow = 2, ncol = 2)
+parameter_matrix[1, ] <- paramsLognormal_male
+parameter_matrix[2, ] <- paramsLognormal_female
+rownames(parameter_matrix) <- c("Male", "Female")
+colnames(parameter_matrix) <- c("meanlog", "sdlog")
+
+kable(parameter_matrix)
+```
+
+Por último, graficamos:
+
+```{r}
+x <- seq(0, max(ramp_male), by = 0.01)
+
+plot(x, dlnorm(x, meanlog = paramsLognormal_male[1], sdlog = paramsLognormal_male[2]), type = "l", col = "blue", lwd = 2, xlab = "x", ylab = "Density", xlim = c(0, max(ramp_male)), ylim = c(0, 0.15))
+lines(x, dlnorm(x, meanlog = paramsLognormal_female[1], sdlog = paramsLognormal_female[2]), col = "red", lwd = 2)
+
+legend("topright", legend = c("Male", "Female"), col = c("blue", "red"), lwd = 2)
+title("Densidades Log-Normal para Male y Female")
+```
+Vemos que a simple vista la diferencia es bastante escasa.
+
+## Ejercicio 4.4
+
+**Enunciado**
+
+Estima el error estándar del estimador MLE de $\mu$ para la distribución log-normal aplicada a los datos de *ramp spike time*.
+
+**Resolución**
+
+Haremos uso del método de bootstrap, de tal forma que generaremos un muestreo (con reemplazo) de n puntos de nuestra muestra. Con cada una de estas muestras se halla el parámetro estimado con MLE, de tal forma que obtenemos una distribución de ellos al final, con los que podemos tener una estadística.
+
+```{r}
+n <- length(ramp)
+
+#Método de bootstrap para sacar distribución de mu
+
+mu_sample <- replicate(100, {
+  aux <- sample(ramp, size = length(ramp), replace = T)
+  params_i <- optim(c(1.5, 0.5), f = mllk_lnorm, data = aux, method = c("Nelder-Mead"))$par[1]
+  
+  return(params_i)
+})
+
+# Error estándar para mu tomada como la desviación estándar de los valores de mu_sample
+
+mu_se <- sd(mu_sample)
+```
+
+## Ejercicio 4.5
+
+**Enunciado**
+
+Obtén un intervalo de confianza del 95% para el parámetro $\mu$ (prueba diferentes métodos).
+
+**Resolución**
+
+Podemos estimarlo con 2 métodos diferentes utilizando bootstrap:
+
+- Con intervalo normal:
+
+$$ (\hat{\theta} - z_{\alpha/2} \hat{se}_{boot}, \ \hat{\theta} + z_{\alpha/2} \hat{se}_{{boot}} ) $$
+```{r}
+alpha <- 0.05
+za2 <- qnorm(alpha / 2, lower.tail = F)
+
+mu_trust <- paramsLognormal[1] + c(-1, 1) * za2 * mu_se
+cat("(", mu_trust[1], ",", mu_trust[2], ")", "es el intervalo de confianza del 95% para mu.")
+```
+- Con intervalo de percentil bootstrap:
+
+$$ C_n = (\theta^{*}_{\alpha / 2}, \theta^{*}_{1 - \alpha / 2}), $$
+donde $\theta^*_{\alpha / 2}$ es el cuantil empírico obtenido a partir de la muestra bootstrap de $\hat{\theta}^{*}.$
+
+```{r}
+mu_perct <- quantile(mu_sample, probs = c(alpha / 2, 1- alpha / 2))
+cat("(", mu_perct[1], ",", mu_perct[2], ")", "es el intervalo de confianza del 95% para mu.")
+```
+
+# Ejercicio 5. Quakes data y modelos de mezcla Gaussianos
+
+En este problema, analizaremos el conjunto de datos **quakes**, que contiene información sobre 1000 terremotos que ocurrieron cerca de Fiji desde 1964. Es un conjunto de datos de 1000 $\times$ 5 observaciones y 5 columnas. **lat**, **long** y **depth** son la latitud, longitud y la profundidad (km) de la ubicación del terremoto, correspondientes a las 3 coordenadas en un espacio 3D. **mag** es la magnitud de Richter del terremoto, y **stations** es el número de estaciones que detectaron y reportaron cada terremoto.
+
+En la primera prate del problema, estudiamos las ubicaciones de los terremotos utilizando un modelo de mezcla gaussiana (mixture of Gaussians).
+
+Una mezcla gaussiana es una distribución de mezcla que consta de dos distribuciones gaussianas con un parámetro de peso. En particular, si una variable aleatoria $X$ sigue una mezcla gaussiana de dos distribuciones $N(\mu_1, \sigma^2_1)$ y $N(\mu_2, \sigma^2_2)$ con un peso $w \in [0, 1]$ entonces hay una probabilidad $w$ de que $X$ siga $N(\mu_1, \sigma^2_1)$ y una probabilidad (1 - $w$) de que $X$ siga $N(\mu_2, \sigma^2_2)$. Denotamos la mezcla gaussiana como:
+
+$$ X \sim GM(\mu_1, \sigma^2_1, \mu_2, \sigma^2_2, w)$$
+con 5 parámetros $\mu_1 \in \mathbb{R}, \sigma_1 > 0, \mu_2 \in \mathbb{R}, \sigma_2 > 0$ y $0 \leq w \leq 1$. La función de densidad de probabilidad de una mezcla gaussiana se da por:
+
+$$ f_{GM} (x | \mu_1, \sigma_1, \mu_2, \sigma_2, w) = w f_N (x | \mu_1, \sigma_1) + (1 - w) \ f_N (\mu_2, \sigma_2), $$
+donde $f_N (x | \mu, \sigma)$ es la función de densidad de probabilidad gaussiana de $N(\mu, \sigma^2)$.
+
+```{r}
+quakes <- read_csv("data/quakes.csv")
+```
+
+## Ejercicio 5.1
+
+**Enunciado**
+
+Implementa una función en R para la función de densidad de probabilidad de la distribución de mezcla gaussiana. Grafica la función de densidad de probabildiad de $GM(2, 1, 5, 1, 0.3)$. Puedes usar la función **dnorm** para la función de densidad de probabilidad de la distribución gaussiana.
+
+**Resolución**
+
+Aplicamos la expresión que se nos otorga en la descripción del ejercicio. Se aplican las restricciones comentadas.
+
+```{r dmnorm}
+GM <- function(x, mu1, sigma1, mu2, sigma2, w) {
+  if (!is.numeric(mu1) || !is.numeric(mu2) || !is.numeric(sigma1) || !is.numeric(sigma2) || !is.numeric(w)) {
+    stop("Todos los argumentos deben ser números reales.")
+  }
+  
+  if (sigma1 <= 0 || sigma2 <= 0) {
+    stop("sigma1 y sigma2 deben ser mayores que 0.")
+  }
+  
+  #Si se pone esta restricción el optim en sus iteraciones da problemas
+  if (w < 0 || w > 1) {
+    print("w debe estar en el rango [0, 1].")
+  }
+  
+  return(w * dnorm(x, mu1, sigma1) + (1 - w) * dnorm(x, mu2, sigma2))
+}
+```
+
+```{r}
+x <- seq(-5, 20, length.out = 1000)
+
+plot(x, GM(x, 2, 1, 5, 1, 0.3), type = "l", col = "blue", xlab = "x", ylab = "PDF",
+     main = "PDF de mezcla gaussiana")
+```
+Observamos claramente cómo tenemos una mezcla gaussiana.
+
+## Ejercicio 5.2
+
+**Enunciado**
+
+Inicialmente, solo observamos los datos de longitud y asumimos que las ubicaciones de longitud son i.i.d. que siguen un modelo de mezcla Gaussiana. Estima los cinco parámetros de la mezcla gaussiana utilizando los 1000 valores observados de longitud. Puedes hacer esto numéricamente en R con la función **optim**. Grafica la mezcla Gaussiana ajustada sobre el histograma de los datos de longitud.
+
+Para encontrar una buena punto inicial para los parámetros, simplemente puedes observar el histograma de los datos y tratar de adivinar la ubicación de las medias $\mu_1$ y $\mu_2$. Una suposición inicial para $w$ puede ser la proporción del tamaño de los dos grupos de datos (o usar $w = 0.5$ como suposición inicial). También puedes probar diferentes valores iniciales y reportar los resultados con la menor log-verosimilitud negativa.
+
+Dado que hay muchos parámetros, la optimización puede llevar mucho tiempo y es probable que debas aumentar el número máximo de iteraciones del algoritmo; de lo contrario, saldrá antes de alcanzar un buen óptimo. Puedes hacerlo con **control** = list(maxit = 10000)} en la función **optim**. Probablemente también habrá muchos warnings, principalmente porque los parámetros deben estar restringidos, especialmente $w$. Puedes ignorar los warnings.
+
+**Resolución**
+
+Procedemos igual que en otros ejercicios, particularizando para nuestra nueva función de densidad de probabilidad.
+
+```{r}
+mllk_GM <- function(params, data) {
+  data <- data
+  mean1 <- params[1]
+  sd1 <- params[2]
+  mean2 <- params[3]
+  sd2 <- params[4]
+  w <- params[5]
+  
+  return(-sum(log(GM(x = data, mu1 = mean1, sigma1 = sd1, mu2 = mean2, sigma2 = sd2, w = w))))
+}
+```
+
+```{r}
+long <- na.omit(quakes$long) # quito los NA para que no haya problemas
+
+paramsGMlong <- optim(c(166, 3, 183, 2, 0.5), f = mllk_GM, data = long, method = c("Nelder-Mead"), control = list(maxit = 10000))$par
+names(paramsGMlong) <- c("mean_1", "sd_1", "mean_2", "sd_2", "w")
+print(paramsGMlong)
+
+hist(long, breaks = 10, probability = TRUE, ylim = c(0, 0.2))
+curve(GM(x, paramsGMlong[1], paramsGMlong[2], paramsGMlong[3], paramsGMlong[4], paramsGMlong[5]), add = TRUE, col = "blue")
+legend("topleft", legend = paste("µ1 =", round(paramsGMlong[1], 2), ", σ1 =", round(paramsGMlong[2], 2), ",\n µ2 =", round(paramsGMlong[3], 2), ", σ2 =", round(paramsGMlong[4], 2), ", w =", round(paramsGMlong[5], 2)), col = "blue", lty = 1)
+```
+## Ejercicio 5.3
+
+**Enunciado**
+
+Considera ahora otro modelo en el que las ubicaciones de longitud son independientes y distribuidas de manera gaussiana $N(\mu, \sigma^2)$. Ajusta este modelo a los datos observados de longitud.
+
+**Resolución**
+
+```{r}
+mllk_norm <- function(params, data) {
+  mean <- params[1]
+  sd <- params[2]
+  -sum(dnorm(data, mean = mean, sd = sd, log = TRUE))
+}
+```
+
+```{r}
+paramslong <- optim(c(150, 20), f = mllk_norm, data = long, method = c("Nelder-Mead"))$par
+names(paramslong) <- c("mean", "sd")
+print(paramslong)
+
+hist(long, breaks = 10, probability = TRUE, ylim = c(0, 0.2))
+curve(dnorm(x, mean = paramslong[1], sd = paramslong[2]), add = TRUE, col = "blue")
+legend("topleft", legend = paste("µ =", round(paramslong[1], 2), ",\n σ =", round(paramslong[2], 2)), col = "blue", lty = 1)
+```
+Vemos cómo resulta a simple vista menos preciso ajustar los datos con una sola gaussiana que con la mezcla gaussiana vista anteriormente.
+
+## Ejercicio 5.4
+
+**Enunciado**
+
+Calcula los valores de AIC y BIC para el modelo gaussiano simple y el modelo de mezcla gaussiana para lso datos de longitud. ¿Qué modelo debería seleccionarse?
+
+**Resolución**
+
+El criterio de información de Akaike (AIC) se basa en una estimación de la divergencia Kullback-Leibler (KL) entre nuestro modelo $\mathcal{M}$ y el verdadero modelo de generación de datos $\mathcal{M}^*$. Si nuestro modelo tiene $k$ parámetros, entonces:
+
+$$ AIC = -2 \log(\mathcal{L}) + 2k $$
+
+Elegiremos el modelo que obtiene el valor AIC más bajo entre los candidatos.
+
+```{r}
+k_mix <- length(paramsGMlong)
+aic_mix <- -2 * sum(log(GM(long, paramsGMlong[1], paramsGMlong[2], paramsGMlong[3], paramsGMlong[4], paramsGMlong[5]))) + 2 * k_mix
+
+k_norm <- length(params)
+aic_norm <- -2 * sum(dnorm(long, params[1], params[2], log = TRUE)) + k_norm
+
+if (aic_mix < aic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
+
+El Criterio de Información Bayesiana (BIC) es similar al AIC, pero ahora aproxima la distribución posterior del modelo $\mathcal{M}$ dado los datos observados, utilizando una distribución previa uniforme sobre los modelos.
+
+$$BIC = -2 \log(\mathcal{L}) + k \log(n)$$
+Elegiremos el modelo que obtiene el valor BIC más bajo entre los candidatos.
+
+```{r}
+n <- length(long)
+
+k_mix <- length(paramsGMlong)
+bic_mix <- -2 * sum(log(GM(long, paramsGMlong[1], paramsGMlong[2], paramsGMlong[3], paramsGMlong[4], paramsGMlong[5]))) + k_mix * log(n)
+
+k_norm <- length(params)
+bic_norm <- -2 * sum(dnorm(long, params[1], params[2], log = TRUE)) + k_norm * log(n)
+
+if (bic_mix < bic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
+
+## Ejercicio 5.5
+
+**Enunciado**
+
+Repite el procedimiento de ajuste anterior para los datos de latitud y profundidad, y realiza la selección de modelo como de costumbre usando AIC y BIC.
+¿Qué modelo debería usarse?
+
+```{r}
+lat <- na.omit(quakes$lat)
+depth <- na.omit(quakes$depth)
+```
+
+```{r}
+paramsGMlat <- optim(c(-20, 3, -15, 2, 0.5), f = mllk_GM, data = lat, method = c("Nelder-Mead"), control = list(maxit = 10000))$par
+names(paramsGMlat) <- c("mean_1", "sd_1", "mean_2", "sd_2", "w")
+
+paramslat <- optim(c(-20, 3), f = mllk_norm, data = long, method = c("Nelder-Mead"))$par
+names(paramslat) <- c("mean", "sd")
+
+paramsGMdepth <- optim(c(-20, 3, -15, 2, 0.5), f = mllk_GM, data = lat, method = c("Nelder-Mead"), control = list(maxit = 10000))$par
+names(paramsGMlat) <- c("mean_1", "sd_1", "mean_2", "sd_2", "w")
+
+paramsdepth <- optim(c(-20, 3), f = mllk_norm, data = long, method = c("Nelder-Mead"))$par
+names(paramsdepth) <- c("mean", "sd")
+```
+
+```{r}
+k_mix <- length(paramsGMlat)
+aic_mix <- -2 * sum(log(GM(long, paramsGMlat[1], paramsGMlat[2], paramsGMlat[3], paramsGMlat[4], paramsGMlat[5]))) + 2 * k_mix
+
+k_norm <- length(paramslat)
+aic_norm <- -2 * sum(dnorm(long, paramslat[1], paramslat[2], log = TRUE)) + k_norm
+
+if (aic_mix < aic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
+```{r}
+k_mix <- length(paramsGMdepth)
+aic_mix <- -2 * sum(log(GM(long, paramsGMdepth[1], paramsGMdepth[2], paramsGMdepth[3], paramsGMdepth[4], paramsGMdepth[5]))) + 2 * k_mix
+
+k_norm <- length(paramsdepth)
+aic_norm <- -2 * sum(dnorm(long, paramsdepth[1], paramsdepth[2], log = TRUE)) + k_norm
+
+if (aic_mix < aic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
+
+```{r}
+n <- length(lat)
+
+k_mix <- length(paramsGMlat)
+bic_mix <- -2 * sum(log(GM(long, paramsGMlat[1], paramsGMlat[2], paramsGMlat[3], paramsGMlat[4], paramsGMlat[5]))) + k_mix * log(n)
+
+k_norm <- length(paramslat)
+bic_norm <- -2 * sum(dnorm(long, paramslat[1], paramslat[2], log = TRUE)) + k_norm * log(n)
+
+if (bic_mix < bic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
+
+```{r}
+n <- length(depth)
+
+k_mix <- length(paramsGMdepth)
+bic_mix <- -2 * sum(log(GM(long, paramsGMdepth[1], paramsGMdepth[2], paramsGMdepth[3], paramsGMdepth[4], paramsGMdepth[5]))) + k_mix * log(n)
+
+k_norm <- length(paramsdepth)
+bic_norm <- -2 * sum(dnorm(long, paramsdepth[1], paramsdepth[2], log = TRUE)) + k_norm * log(n)
+
+if (bic_mix < bic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
 ```
