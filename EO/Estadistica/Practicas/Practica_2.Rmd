@@ -411,4 +411,256 @@ donde $\theta^*_{\alpha / 2}$ es el cuantil empírico obtenido a partir de la mu
 mu_perct <- quantile(mu_sample, probs = c(alpha / 2, 1- alpha / 2))
 cat("(", mu_perct[1], ",", mu_perct[2], ")", "es el intervalo de confianza del 95% para mu.")
 ```
+# Ejercicio 5. Quakes data y modelos de mezcla Gaussianos
 
+En este problema, analizaremos el conjunto de datos **quakes**, que contiene información sobre 1000 terremotos que ocurrieron cerca de Fiji desde 1964. Es un conjunto de datos de 1000 $\times$ 5 observaciones y 5 columnas. **lat**, **long** y **depth** son la latitud, longitud y la profundidad (km) de la ubicación del terremoto, correspondientes a las 3 coordenadas en un espacio 3D. **mag** es la magnitud de Richter del terremoto, y **stations** es el número de estaciones que detectaron y reportaron cada terremoto.
+
+En la primera prate del problema, estudiamos las ubicaciones de los terremotos utilizando un modelo de mezcla gaussiana (mixture of Gaussians).
+
+Una mezcla gaussiana es una distribución de mezcla que consta de dos distribuciones gaussianas con un parámetro de peso. En particular, si una variable aleatoria $X$ sigue una mezcla gaussiana de dos distribuciones $N(\mu_1, \sigma^2_1)$ y $N(\mu_2, \sigma^2_2)$ con un peso $w \in [0, 1]$ entonces hay una probabilidad $w$ de que $X$ siga $N(\mu_1, \sigma^2_1)$ y una probabilidad (1 - $w$) de que $X$ siga $N(\mu_2, \sigma^2_2)$. Denotamos la mezcla gaussiana como:
+
+$$ X \sim GM(\mu_1, \sigma^2_1, \mu_2, \sigma^2_2, w)$$
+con 5 parámetros $\mu_1 \in \mathbb{R}, \sigma_1 > 0, \mu_2 \in \mathbb{R}, \sigma_2 > 0$ y $0 \leq w \leq 1$. La función de densidad de probabilidad de una mezcla gaussiana se da por:
+
+$$ f_{GM} (x | \mu_1, \sigma_1, \mu_2, \sigma_2, w) = w f_N (x | \mu_1, \sigma_1) + (1 - w) \ f_N (\mu_2, \sigma_2), $$
+donde $f_N (x | \mu, \sigma)$ es la función de densidad de probabilidad gaussiana de $N(\mu, \sigma^2)$.
+
+```{r}
+quakes <- read_csv("data/quakes.csv")
+```
+
+## Ejercicio 5.1
+
+**Enunciado**
+
+Implementa una función en R para la función de densidad de probabilidad de la distribución de mezcla gaussiana. Grafica la función de densidad de probabildiad de $GM(2, 1, 5, 1, 0.3)$. Puedes usar la función **dnorm** para la función de densidad de probabilidad de la distribución gaussiana.
+
+**Resolución**
+
+Aplicamos la expresión que se nos otorga en la descripción del ejercicio. Se aplican las restricciones comentadas.
+
+```{r dmnorm}
+GM <- function(x, mu1, sigma1, mu2, sigma2, w) {
+  if (!is.numeric(mu1) || !is.numeric(mu2) || !is.numeric(sigma1) || !is.numeric(sigma2) || !is.numeric(w)) {
+    stop("Todos los argumentos deben ser números reales.")
+  }
+  
+  if (sigma1 <= 0 || sigma2 <= 0) {
+    stop("sigma1 y sigma2 deben ser mayores que 0.")
+  }
+  
+  #Si se pone esta restricción el optim en sus iteraciones da problemas
+  if (w < 0 || w > 1) {
+    print("w debe estar en el rango [0, 1].")
+  }
+  
+  return(w * dnorm(x, mu1, sigma1) + (1 - w) * dnorm(x, mu2, sigma2))
+}
+```
+
+```{r}
+x <- seq(-5, 20, length.out = 1000)
+
+plot(x, GM(x, 2, 1, 5, 1, 0.3), type = "l", col = "blue", xlab = "x", ylab = "PDF",
+     main = "PDF de mezcla gaussiana")
+```
+Observamos claramente cómo tenemos una mezcla gaussiana.
+
+## Ejercicio 5.2
+
+**Enunciado**
+
+Inicialmente, solo observamos los datos de longitud y asumimos que las ubicaciones de longitud son i.i.d. que siguen un modelo de mezcla Gaussiana. Estima los cinco parámetros de la mezcla gaussiana utilizando los 1000 valores observados de longitud. Puedes hacer esto numéricamente en R con la función **optim**. Grafica la mezcla Gaussiana ajustada sobre el histograma de los datos de longitud.
+
+Para encontrar una buena punto inicial para los parámetros, simplemente puedes observar el histograma de los datos y tratar de adivinar la ubicación de las medias $\mu_1$ y $\mu_2$. Una suposición inicial para $w$ puede ser la proporción del tamaño de los dos grupos de datos (o usar $w = 0.5$ como suposición inicial). También puedes probar diferentes valores iniciales y reportar los resultados con la menor log-verosimilitud negativa.
+
+Dado que hay muchos parámetros, la optimización puede llevar mucho tiempo y es probable que debas aumentar el número máximo de iteraciones del algoritmo; de lo contrario, saldrá antes de alcanzar un buen óptimo. Puedes hacerlo con **control** = list(maxit = 10000)} en la función **optim**. Probablemente también habrá muchos warnings, principalmente porque los parámetros deben estar restringidos, especialmente $w$. Puedes ignorar los warnings.
+
+**Resolución**
+
+Procedemos igual que en otros ejercicios, particularizando para nuestra nueva función de densidad de probabilidad.
+
+```{r}
+mllk_GM <- function(params, data) {
+  data <- data
+  mean1 <- params[1]
+  sd1 <- params[2]
+  mean2 <- params[3]
+  sd2 <- params[4]
+  w <- params[5]
+  
+  return(-sum(log(GM(x = data, mu1 = mean1, sigma1 = sd1, mu2 = mean2, sigma2 = sd2, w = w))))
+}
+```
+
+```{r}
+long <- na.omit(quakes$long) # quito los NA para que no haya problemas
+
+paramsGMlong <- optim(c(166, 3, 183, 2, 0.5), f = mllk_GM, data = long, method = c("Nelder-Mead"), control = list(maxit = 10000))$par
+names(paramsGMlong) <- c("mean_1", "sd_1", "mean_2", "sd_2", "w")
+print(paramsGMlong)
+
+hist(long, breaks = 10, probability = TRUE, ylim = c(0, 0.2))
+curve(GM(x, paramsGMlong[1], paramsGMlong[2], paramsGMlong[3], paramsGMlong[4], paramsGMlong[5]), add = TRUE, col = "blue")
+legend("topleft", legend = paste("µ1 =", round(paramsGMlong[1], 2), ", σ1 =", round(paramsGMlong[2], 2), ",\n µ2 =", round(paramsGMlong[3], 2), ", σ2 =", round(paramsGMlong[4], 2), ", w =", round(paramsGMlong[5], 2)), col = "blue", lty = 1)
+```
+## Ejercicio 5.3
+
+**Enunciado**
+
+Considera ahora otro modelo en el que las ubicaciones de longitud son independientes y distribuidas de manera gaussiana $N(\mu, \sigma^2)$. Ajusta este modelo a los datos observados de longitud.
+
+**Resolución**
+
+```{r}
+mllk_norm <- function(params, data) {
+  mean <- params[1]
+  sd <- params[2]
+  -sum(dnorm(data, mean = mean, sd = sd, log = TRUE))
+}
+```
+
+```{r}
+paramslong <- optim(c(150, 20), f = mllk_norm, data = long, method = c("Nelder-Mead"))$par
+names(paramslong) <- c("mean", "sd")
+print(paramslong)
+
+hist(long, breaks = 10, probability = TRUE, ylim = c(0, 0.2))
+curve(dnorm(x, mean = paramslong[1], sd = paramslong[2]), add = TRUE, col = "blue")
+legend("topleft", legend = paste("µ =", round(paramslong[1], 2), ",\n σ =", round(paramslong[2], 2)), col = "blue", lty = 1)
+```
+Vemos cómo resulta a simple vista menos preciso ajustar los datos con una sola gaussiana que con la mezcla gaussiana vista anteriormente.
+
+## Ejercicio 5.4
+
+**Enunciado**
+
+Calcula los valores de AIC y BIC para el modelo gaussiano simple y el modelo de mezcla gaussiana para lso datos de longitud. ¿Qué modelo debería seleccionarse?
+
+**Resolución**
+
+El criterio de información de Akaike (AIC) se basa en una estimación de la divergencia Kullback-Leibler (KL) entre nuestro modelo $\mathcal{M}$ y el verdadero modelo de generación de datos $\mathcal{M}^*$. Si nuestro modelo tiene $k$ parámetros, entonces:
+
+$$ AIC = -2 \log(\mathcal{L}) + 2k $$
+
+Elegiremos el modelo que obtiene el valor AIC más bajo entre los candidatos.
+
+```{r}
+k_mix <- length(paramsGMlong)
+aic_mix <- -2 * sum(log(GM(long, paramsGMlong[1], paramsGMlong[2], paramsGMlong[3], paramsGMlong[4], paramsGMlong[5]))) + 2 * k_mix
+
+k_norm <- length(params)
+aic_norm <- -2 * sum(dnorm(long, params[1], params[2], log = TRUE)) + k_norm
+
+if (aic_mix < aic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
+
+El Criterio de Información Bayesiana (BIC) es similar al AIC, pero ahora aproxima la distribución posterior del modelo $\mathcal{M}$ dado los datos observados, utilizando una distribución previa uniforme sobre los modelos.
+
+$$BIC = -2 \log(\mathcal{L}) + k \log(n)$$
+Elegiremos el modelo que obtiene el valor BIC más bajo entre los candidatos.
+
+```{r}
+n <- length(long)
+
+k_mix <- length(paramsGMlong)
+bic_mix <- -2 * sum(log(GM(long, paramsGMlong[1], paramsGMlong[2], paramsGMlong[3], paramsGMlong[4], paramsGMlong[5]))) + k_mix * log(n)
+
+k_norm <- length(params)
+bic_norm <- -2 * sum(dnorm(long, params[1], params[2], log = TRUE)) + k_norm * log(n)
+
+if (bic_mix < bic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
+
+## Ejercicio 5.5
+
+**Enunciado**
+
+Repite el procedimiento de ajuste anterior para los datos de latitud y profundidad, y realiza la selección de modelo como de costumbre usando AIC y BIC.
+¿Qué modelo debería usarse?
+
+```{r}
+lat <- na.omit(quakes$lat)
+depth <- na.omit(quakes$depth)
+```
+
+```{r}
+paramsGMlat <- optim(c(-20, 3, -15, 2, 0.5), f = mllk_GM, data = lat, method = c("Nelder-Mead"), control = list(maxit = 10000))$par
+names(paramsGMlat) <- c("mean_1", "sd_1", "mean_2", "sd_2", "w")
+
+paramslat <- optim(c(-20, 3), f = mllk_norm, data = long, method = c("Nelder-Mead"))$par
+names(paramslat) <- c("mean", "sd")
+
+paramsGMdepth <- optim(c(-20, 3, -15, 2, 0.5), f = mllk_GM, data = lat, method = c("Nelder-Mead"), control = list(maxit = 10000))$par
+names(paramsGMlat) <- c("mean_1", "sd_1", "mean_2", "sd_2", "w")
+
+paramsdepth <- optim(c(-20, 3), f = mllk_norm, data = long, method = c("Nelder-Mead"))$par
+names(paramsdepth) <- c("mean", "sd")
+```
+
+```{r}
+k_mix <- length(paramsGMlat)
+aic_mix <- -2 * sum(log(GM(long, paramsGMlat[1], paramsGMlat[2], paramsGMlat[3], paramsGMlat[4], paramsGMlat[5]))) + 2 * k_mix
+
+k_norm <- length(paramslat)
+aic_norm <- -2 * sum(dnorm(long, paramslat[1], paramslat[2], log = TRUE)) + k_norm
+
+if (aic_mix < aic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
+```{r}
+k_mix <- length(paramsGMdepth)
+aic_mix <- -2 * sum(log(GM(long, paramsGMdepth[1], paramsGMdepth[2], paramsGMdepth[3], paramsGMdepth[4], paramsGMdepth[5]))) + 2 * k_mix
+
+k_norm <- length(paramsdepth)
+aic_norm <- -2 * sum(dnorm(long, paramsdepth[1], paramsdepth[2], log = TRUE)) + k_norm
+
+if (aic_mix < aic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
+
+```{r}
+n <- length(lat)
+
+k_mix <- length(paramsGMlat)
+bic_mix <- -2 * sum(log(GM(long, paramsGMlat[1], paramsGMlat[2], paramsGMlat[3], paramsGMlat[4], paramsGMlat[5]))) + k_mix * log(n)
+
+k_norm <- length(paramslat)
+bic_norm <- -2 * sum(dnorm(long, paramslat[1], paramslat[2], log = TRUE)) + k_norm * log(n)
+
+if (bic_mix < bic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
+
+```{r}
+n <- length(depth)
+
+k_mix <- length(paramsGMdepth)
+bic_mix <- -2 * sum(log(GM(long, paramsGMdepth[1], paramsGMdepth[2], paramsGMdepth[3], paramsGMdepth[4], paramsGMdepth[5]))) + k_mix * log(n)
+
+k_norm <- length(paramsdepth)
+bic_norm <- -2 * sum(dnorm(long, paramsdepth[1], paramsdepth[2], log = TRUE)) + k_norm * log(n)
+
+if (bic_mix < bic_norm) {
+  print("Se selecciona el modelo de mezcla.")
+} else {
+  print("Se selecciona el modelo gaussiano usual.")
+}
+```
