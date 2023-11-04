@@ -1,6 +1,6 @@
 ---
 title: "Practica_2"
-author: "Jesús Martínez Leal"
+author: "Jesús Martínez Leal, Samuel Ortega Mediavilla & Pablo Vicente Martínez"
 date: "2023-11-02"
 output: html_document
 ---
@@ -15,8 +15,11 @@ Como es habitual, cargamos las librerías que necesitamos al inicio del document
 
 ```{r librerias, message = T, include = T, echo = T}
 # Carga de librerías necesarias con pacman
-library(pacman)
-pacman::p_load(readr, stringr, tidyr, dplyr, readxl, ggplot2, forcats, MASS)
+if (!require(pacman)) {
+  install.packages("pacman")
+  library(pacman)
+}
+pacman::p_load(readr, stringr, tidyr, dplyr, readxl, ggplot2, forcats, MASS, statmod, kableExtra, greekLetters)
 ```
 
 Cargue los datos en el archivo **angles.txt**; los datos han sido generados a partir de una densidad $f(x|k) ∝ sin(x)^k$ en el intervalo $[0, π]$ $(f(x|k) = 0$ fuera del intervalo $[0, π]$). Notación: ∝ significa *proporcional a*, lo que significa que $f(x|k) = C_ksin(x)^k$, donde $C_k$ es una constante de normalización apropiada.
@@ -33,7 +36,8 @@ a <- as.numeric(a)
 
 # Ejercicio 1
 
-## Ejercicio 1.0 
+## Ejercicio 1.0
+
 ¿Cómo puede calcular la constante de normalización $C_k   $?
 
 Para calcular la constante de normalización $C_k$ el método de los momentos.
@@ -416,13 +420,6 @@ Encuentre los estimadores de máxima verosimilitud utilizando métodos numérico
 Usamos la función `dinvgauss()` del paquete `statmod`.
 
 ```{r}
-if (!require(statmod)) {
-  install.packages("statmod")
-  library(statmod)
-}
-library(kableExtra)
-library(greekLetters)
-
 mllk <- function(params, data) {
   mean <- params[1]
   shape <- params[2]
