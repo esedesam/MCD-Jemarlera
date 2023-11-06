@@ -20,9 +20,11 @@ if (!require(pacman)) {
   library(pacman)
 }
 pacman::p_load(readr, stringr, tidyr, dplyr, readxl, ggplot2, forcats, MASS, statmod, kableExtra, greekLetters)
+
+set.seed(33)
 ```
 
-Cargue los datos en el archivo **angles.txt**; los datos han sido generados a partir de una densidad $f(x|k) ∝ sin(x)^k$ en el intervalo $[0, π]$ $(f(x|k) = 0$ fuera del intervalo $[0, π]$). Notación: ∝ significa *proporcional a*, lo que significa que $f(x|k) = C_ksin(x)^k$, donde $C_k$ es una constante de normalización apropiada.
+Cargue los datos en el archivo **angles.txt**; los datos han sido generados a partir de una densidad $f(x|k) ∝ sin(x)^k$ en el intervalo $[0, π]$ $(f(x|k) = 0$ fuera del intervalo $[0, π]$). Notación: ∝ significa *proporcional a*, lo que significa que $f(x|k) = C_k \sin(x)^k$, donde $C_k$ es una constante de normalización apropiada.
 
 ```{r}
 angles <- readLines(con = "./data/angles.txt")
@@ -34,55 +36,75 @@ a <- as.numeric(a)
 ```
 
 
-# Ejercicio 1
+# Ejercicio 1. Una densidad para ángulos
 
 ## Ejercicio 1.0
 
+**Enunciado**
+
 ¿Cómo puede calcular la constante de normalización $C_k   $?
 
-Para calcular la constante de normalización $C_k$ el método de los momentos.
+**Resolución**
 
-$$\mathbb{E}(X) = \int_{0}^\pi xC_ksin(x)^k dx$$
+Para calcular la constante de normalización $C_k$ tenemos que normalizar la integral de la densidad de probabilidad en nuestro dominio de definición a la unidad, para que pueda interpretarse como probabilidad.
+
+$$ \int_{0}^\pi C_k \sin(x)^k dx = 1 $$
 
 ## Ejercicio 1.1
 
+**Enunciado**
+
 ¿El modelo es paramétrico? ¿Cuáles son los parámetros del modelo?
 
-El modelo es paramétrico porque se puede parametrizar con un número finito de variables. En este caso el parámetros es **k**.
+**Resolución**
+
+El modelo es paramétrico porque se puede parametrizar con un número finito de variables. En este caso el número de parámetros es 1: **k**.
 
 ## Ejercicio 1.2
+
+**Enunciado**
 
 Escriba la función del logaritmo negativo de la verosimilitud del modelo e impleméntela en una función de R.
 
 La función de verosimilitud es:
 
-$$ \mathbb{L}_n(k) = \prod_{i = 1}^n  C_ksin(x)^k $$
+$$\mathcal{L}_n(k) = \prod_{i = 1}^n  C_k \sin{(x_i)}^k$$
 
 Y por tanto, la función del logaritmo negativo de la verosimilitud queda de la forma:
 
-$$l_n(k) = -\sum_{i = 1}^n \left(ln(C_k) + k·ln(sin(x))\right)$$
+$$ℓ_n(k) = -\sum_{i = 1}^n \left(\ln(C_k) + k·\ln(\sin(x_i))\right)$$
 
 Y se implementaría en R como sigue:
 
 ```{r}
 C_norm <- function(k, obs) sin(obs)**k
 
-l_n <- function(k, obs) -sum(log(1/integrate(C_norm, lower = 0, upper = 3.14, k = k)$value) + k*log(sin(obs)))
+l_n <- function(k, obs) -sum(log(1 / integrate(C_norm, lower = 0, upper = 3.14, k = k)$value) + k*log(sin(obs)))
 ```
 
 ## Ejercicio 1.3
 
+**Enunciado**
+
 Utilice un método de optimización numérica para encontrar el estimador de máxima verosimilitud
 
+**Resolución**
+
+Podemos hacer uso de la función **optimize**.
 
 ```{r}
 k_opt <- optimize(l_n, obs = a, lower = 5, upper = 20)
 ```
-Vemos que el valor para el estimador es k = 11.4
+
+Vemos que el valor para el estimador es k = `r k_opt$minimum`
 
 ## Ejercicio 1.4
 
+**Enunciado**
+
 Grafique el histograma de los datos y la densidad correspondiente al estimador de máxima verosimilitud.
+
+**Resolución**
 
 ```{r}
 df_a <- data.frame(a)
@@ -90,12 +112,16 @@ df_a <- data.frame(a)
 ggplot(df_a, aes(a)) +
   geom_histogram(aes(y = after_stat(density)), colour = "black", fill = "white") +
   geom_density(alpha = .2, fill="red") +
-  labs(title = "Histogram and Density Plot of Maximum Likelihood Estimator", x = "Data", y = "Density")
+  labs(title = "Histograma y plot de densidad para el estimador de máxima verosimilitud", x = "Datos", y = "Densidad")
 ```
 
 ## Ejercicio 1.5
 
+**Enunciado**
+
 Construye un intervalo de confianza del 99% para k basado en los datos en el archivo angles.txt. ¿Cómo puedes estimar el error estándar?
+
+**Resolución**
 
 ```{r}
 #Método de bootstrap para sacar distribución de k
@@ -118,14 +144,23 @@ k_perct <- quantile(v_sample, probs = c(alpha/2, 1-alpha/2))
 
 ## Ejercicio 1.6
 
-Prueba si k > 10 a un nivel de confianza α = 0.05 para los datos en el archivo angles.txt (puedes utilizar la prueba de Wald H0 : k ≤ 10).
+**Enunciado**
+
+Prueba si $k > 10$ a un nivel de confianza α = 0.05 para los datos en el archivo angles.txt (puedes utilizar la prueba de Wald H0 : k ≤ 10).
+
+**Resolución**
 
 ```{r}
+alpha <- 0.05
 k_0 <- 10
-w <- (k_opt$minimum - k_0)/k_std
-p_value <- 2*pnorm(-abs(w))
+w <- abs((k_opt$minimum - k_0) / k_std)
+p_value <- 2 * pnorm(-abs(w))
 
+if (p_value < alpha){
 cat("Dado que el p-value de la prueba de Wald es", p_value, "podemos rechazar la hipótesis nula (H0 : k ≤ 10)")
+} else {
+  cat("No se puede rechazar la hipótesis nula.")
+}
 ```
 
 # Ejercicio 2. Un estudio sobre datos de neuronas
@@ -140,7 +175,11 @@ isidata <- read.table("./data/neuronspikes.txt", col.names = "isi")
 
 ## Ejercicio 2.1. 
 
+**Enunciado**
+
 Si asumimos que las observaciones de ISI son i.i.d. siguen una distribución exponencial con parámetro $\lambda$, calcule el estimador de máxima verosimilitud de $\lambda$.
+
+**Resolución**
 
 Sea $X_1, ..., X_n \sim \exp({\lambda})$ ($\lambda$ > 0) donde sabemos que la PDF es $f(x|\lambda) = \lambda \exp(-\lambda x)$.
 
@@ -163,7 +202,7 @@ Obtenemos despejando para $\lambda$:
 $$\lambda = \frac{n}{\sum_{i = 1}^n} = \frac{1}{\bar{X}}$$
 Para verificar que es un máximo acudimos al criterio de la segunda derivada, que nos ofrece:
 
-$$ \frac{d^2ℓ_n}{d\lambda^2} = - \frac{n}{\lambda ^2}, $$, de tal forma que se ve que es siempre negativo dada nuestra restricción en el parámetro $\lambda$ de ser positivo.
+$$ \frac{d^2ℓ_n}{d\lambda^2} = - \frac{n}{\lambda ^2}, $$ de tal forma que se ve que es siempre negativo dada nuestra restricción en el parámetro $\lambda$ de ser positivo.
 
 Podemos entonces asegurar que el estimador de máxima verosimilitud de nuestro parámetro es:
 
@@ -172,8 +211,9 @@ Así pues, tendremos:
 
 ```{r}
 lambda_hat <- 1 / mean(isidata$isi)
-cat("El parámetro estimado es", lambda_hat, "\n")
+cat("El parámetro estimado es λ =", lambda_hat, "\n")
 ```
+
 ```{r}
 mllk <- function(rate, data) {
   -sum((dexp(data, rate = rate, log = TRUE)))
@@ -183,8 +223,13 @@ optimize(f = mllk, data = isidata$isi, interval = c(0, 10))
 
 rate_num_est <- optimize(f = mllk, data = isidata$isi, interval = c(0, 10))$minimum
 
-hist(isidata$isi, breaks = 10, probability = TRUE)
+hist(isidata$isi, breaks = 10, probability = TRUE, xlab = " Intervalo de tiempo entre dos spikes adyacentes",
+    ylab = "Densidad", main = "Datos ISI")
 curve(dexp(x, rate_num_est), add = TRUE, col = "blue")
+box()
+legend_labels <- c("Histograma de ISI", "Densidad de la distribución exponencial")
+legend("topright", legend = legend_labels, fill = c("gray", NA), border = c("black", NA), lwd = c(NA,
+    2), col = c(NA, "blue"))
 ```
 
 Con una función implementada en R directamente nos ahorraríamos esto:
@@ -198,15 +243,16 @@ fit <- fitdistr(data, "exponential")
 # Obtener parámetros
 estimated_rate <- fit$estimate
 
-# Print the results
-cat("El parámetro estimado es", estimated_rate, "\n")
+cat("El parámetro estimado es λ =", estimated_rate, "\n")
 ```
 
 ## Ejercicio 2.2
 
+**Enuncicado**
+
 Ahora, asumiendo que las observaciones de ISI son i.i.d. y siguen una distribución gamma con paráemtros $\alpha$ (*shape*) y $\beta$ (*rate*), encuentre los estimadores de máxima verosimiltud de los parámetros $\alpha$ y $\beta$.
 
-[here](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&ved=2ahUKEwiQuY3QqaWCAxV0UKQEHfzsA3YQFnoECA0QAw&url=https%3A%2F%2Fzenodo.org%2Frecord%2F4019900%2Ffiles%2FMLE_Gamma.pdf&usg=AOvVaw0jf-TZxBuj4LJFZZCs0ofh&opi=89978449)
+**Resolución**
 
 Sacaremos numéricamente estos estimadores utilizando una función implementada en R:
 
@@ -219,10 +265,16 @@ mllk <- function(params, data) {
 
 params <- optim(c(1, 1), f = mllk, data = isidata$isi, method = c("Nelder-Mead"))$par
 
-hist(isidata$isi , breaks = 10, probability = TRUE)
+hist(isidata$isi, breaks = 10, probability = TRUE, xlab = " Intervalo de tiempo entre dos spikes adyacentes",
+    ylab = "Densidad", main = "Datos ISI")
 curve(dgamma(x, shape = params[1], rate = params[2]), add = TRUE, col = "blue")
+box()
+legend_labels <- c("Histograma de ISI", "Densidad de la distribución gamma")
+legend("topright", legend = legend_labels, fill = c("gray", NA), border = c("black", NA), lwd = c(NA,
+    2), col = c(NA, "blue"))
 
 ```
+De nuevo, podríamos hacerlo con una función implementada en una librería directamente.
 
 ```{r}
 data <- isidata$isi  
@@ -237,12 +289,11 @@ estimated_rate <- fit$estimate["rate"]
 
 cat("El valor de shape estimado es:", estimated_shape)
 cat("\nEl valor de rate estimado es:", estimated_rate)
-
-hist(isidata$isi , breaks = 10, probability = TRUE)
-curve(dgamma(x, shape = estimated_shape, rate = estimated_rate), add = TRUE, col = "blue")
 ```
 
 ## Ejercicio 2.3
+
+**Enunciado**
 
 Para la distribución gamma, conocemos las fórmulas de la media y la varianza, como sigue,
 
@@ -251,6 +302,8 @@ $$ \mathbb{E} (X) = \frac{\alpha}{\beta} $$
 $$\mathbb{V} (X) = \frac{\alpha}{\beta^2}$$
 
 Tratar de encontrar el estimador de momentos de $\alpha$ y $\beta$. El estimador de momentos puede utilizarse para encontrar la primera estimación y para inicializar el algoritmo iterativo de MLE.
+
+**Resolución**
 
 Tenemos las dos primeras ecuaciones del método de los momentos, por lo que tenemos lo siguiente. Si introducimos la primera ecuación en la segunda:
 
@@ -264,12 +317,14 @@ beta_est
 
 Para $\alpha$ solamente resta sustituir:
 
-$$ \alpha = \beta \mathbb{E (X)} $$
+$$ \alpha = \beta \ \mathbb{E (X)} $$
 
 ```{r}
 alpha_est <- beta_est * mean(isidata$isi)
 alpha_est
 ```
+
+Estos valores se utilizan a continuación como valores iniciales para realizar el proceso iterativo que calcula los mejores estimadores MLE.
 
 ```{r}
 mllk <- function(params, data) {
@@ -282,15 +337,24 @@ params <- optim(c(alpha_est, beta_est), f = mllk, data = isidata$isi, method = c
 
 params
 
-hist(isidata$isi , breaks = 10, probability = TRUE)
+hist(isidata$isi, breaks = 10, probability = TRUE, xlab = " Intervalo de tiempo entre dos spikes adyacentes",
+    ylab = "Densidad", main = "Datos ISI")
 curve(dgamma(x, shape = params[1], rate = params[2]), add = TRUE, col = "blue")
+box()
+legend_labels <- c("Histograma de ISI", "Densidad de la distribución gamma")
+legend("topright", legend = legend_labels, fill = c("gray", NA), border = c("black", NA), lwd = c(NA,
+    2), col = c(NA, "blue"))
 ```
 
 Vemos cómo la estimación ofrecida por el método de máxima verosimilitud converge, al igual que cuando en el apartado 2.2 se introdujo manualmente el valor para el estimador inicial de los parámetros.
 
 ## Ejercicio 2.4
 
+**Enunciado**
+
 La distribución exponencial es un caso especial de la distribución gamma cuando el parámetro de forma es igual a 1. Verifica este hecho gráficamente en R.
+
+**Resolución**
 
 Una búsqueda simple en Wikipedia de *Gamma distribution* nos permite conocer la PDF de esta, siendo:
 
@@ -298,7 +362,7 @@ $$ f(x) = \frac{\beta ^ \alpha}{\Gamma(\alpha)} x ^{\alpha - 1} * \exp(-\beta x)
 
 Automáticamente, si particularizamos para el factor *shape* ($\alpha$) que sea igual a 1 obtenemos la expresión para la PDF de la distribución exponencial, ($\Gamma$ (1) = (1 - 1) ! = 0! = 1, $x ^ 0  = 1, x > 0$).
 
-Para ver esto de manera gráfica hacemos:
+Para ver esto de manera gráfica hacemos un plot donde se muestra la distribución exponencial junto con varias distribuciones gamma, donde vamos cada vez acercándonos más a la unidad para el parámetro de forma.
 
 ```{r}
 shape_gamma <- c(1.5, 1.2, 1)
@@ -318,12 +382,13 @@ ggplot(df, aes(x = x)) +
   geom_line(aes(y = pdf_gamma3, color = "Gamma3"), size = 1.5) +
   geom_line(aes(y = pdf_exp, color = "Exponential"), size = 1.5) +
   labs(y = "Density", x = "x") +
-  ggtitle("Probability Density Functions of Gamma and Exponential Distributions") +
+  ggtitle("Funciones de densidad de probabilidad Gamma y Exponencial") +
   scale_color_manual(values = c("Gamma1" = "blue", "Gamma2" = "orange", "Gamma3" = "green", "Exponential" = "red")) +
   theme_minimal() +
   theme(legend.position = "right")
 ```
-Puede apareciarse como Gamma3 parece desaparecer. Esto es debido a que se encuentra solapada con la curva exponencial roja. Esto es inmediato de comprobar si se grafica la curva resta para su dominio de definición.
+
+Puede apareciarse como Gamma3 parece desaparecer. Esta posee el parámetro $\alpha = 1$ y el mismo valor del parámetro de *rate* que la exponencial, hallándose entonces solapada con la curva exponencial roja. Esto es inmediato de comprobar si se grafica la curva resta para su dominio de definición.
 
 ```{r}
 plot(x, df$pdf_exp - df$pdf_gamma3, xlim = c(0, 10), ylim = c(-0.1, 0.1), type = "l", xlab = "x", ylab = "Diferencia Gamma3 con Exponential", col = "green")
@@ -332,12 +397,36 @@ plot(x, df$pdf_exp - df$pdf_gamma3, xlim = c(0, 10), ylim = c(-0.1, 0.1), type =
 
 ## Ejercicio 2.5
 
+**Enunciado**
+
 Dado que el modelo exponencial está anidado en el modelo gamma, podemos realizar la prueba de razón de verosimilitud (likelihood-ratio test) para seleccionar entre los dos modelos. Realiza la prueba de razón de verosimilitud en R y reporta el valor de p resultante.
+
+**Resolución**
 
 $H_0$: el modelo $\mathcal{M}_1$ es suficiente para describir los datos.
 
+```{r}
+exp_model <- fitdistr(data, "exponential")
+gamma_model <- fitdistr(data, "gamma")
+
+lr <- -2 * (exp_model$loglik - gamma_model$loglik)
+lr
+
+p_val <- pchisq(lr, df = 1, lower.tail = FALSE) # lower.tail en FALSE para que coja desde ese valor hasta el inf
+cat("Valor del p valor: ", p_val, "\n")
+
+alpha <- 0.05
+
+if (p_val < alpha){
+  print("Se rechaza la hipótesis nula.")
+} else{
+  print("No puede rechazarse la hipótesis nula.")
+}
+```
 
 # Ejercicio 3
+
+**Enunciado**
 
 Además de las distribuciones exponencial y gamma, la distribución inversa Gaussiana es otro modelo ampliamente utilizado para los intervalos entre eventos. Describe el tiempo de primer paso de un movimiento browniano unidimensional sujeto a un valor umbral fijo. La función de densidad de probabilidad se define como:
 
@@ -349,7 +438,11 @@ $$
 
 ## Ejercicio 3.1
 
+**Enunciado**
+
 Escriba (analíticamente) la fórmula para el logaritmo de la verosimilitud dadas n observaciones i.i.d.
+
+**Resolución**
 
 La función de log-verosimilitud es
 
@@ -459,6 +552,7 @@ legend("topright", legend = legend_labels,
        lwd = c(NA, 2),
        col = c(NA, "red"))
 ```
+
 # Ejercicio 4. Conjunto de datos de células cerebrales
 
 Continuamos el estudio del conjunto de datos de células cerebrales del Instituto Allen. 
