@@ -82,7 +82,7 @@ realizar_t_test <- function(x, y, alternative = c("two.sided")) {
   
   alpha <- 0.05
 
-  t_test_result <- t.test(x, y, alternative = alternative, paired = TRUE, conf.level = 0.95, var.equal = FALSE)
+  t_test_result <- t.test(x, y, alternative = alternative, paired = FALSE, conf.level = 0.95, var.equal = FALSE)
   
   cat("El valor obtenido para el p-value es:", paste0(t_test_result$p.value, ".\n"))
   
