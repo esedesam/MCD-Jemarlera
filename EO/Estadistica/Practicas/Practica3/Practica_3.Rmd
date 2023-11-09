@@ -31,23 +31,75 @@ set.seed(33)
 ```
 
 
+## Ejercicio 2
 
-## R Markdown
+En este problema estudiamos la distribución del peso del cerebro humano en adultos y su relación con el tamaño de la cabeza. Los datos se encuentran en el marco de datos brainhead, que contiene las siguientes mediciones para 237 sujetos:
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+  • agerange 1 si la edad ∈ [20, 46], 2 si la edad es > 46
+  • headsize volumen de la cabeza en cm³.
+  • brainweight peso del cerebro en gramos.
+  
+### Pregunta 2.1 
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Comprueba si la distribución del peso del cerebro se puede asumir como Gaussiana, utilizando las herramientas que hemos visto en el curso. Comprueba si la suposición de normalidad es válida también individualmente para los dos grupos de edad (agerange = 1, 2).
 
-```{r cars}
-summary(cars)
+
+```{r}
+brainhead <- read.csv("./data/brainhead.csv")
+
+qqnorm(y = brainhead$brainweight)
+qqline(y = brainhead$brainweight)
 ```
 
-## Including Plots
+Dado que los puntos se distribuyen a lo largo de la diagonal del gráfico, podemos afirmar que siguen un adistribución gaussiana.
 
-You can also embed plots, for example:
+Aplicándolo para los distintos rangos de edad por separado:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+agerange_1 <- brainhead[brainhead$agerange == 1, ]
+agerange_2 <- brainhead[brainhead$agerange == 2, ]
+
+
+qqnorm(y = agerange_1$brainweight, main = "Normal Q-Q Plot (Age Range [20, 46])")
+qqline(y = agerange_1$brainweight)
+
+qqnorm(y = agerange_2$brainweight, main = "Normal Q-Q Plot (Age Range > 46)")
+qqline(y = agerange_2$brainweight)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Siguiendo el mismo razonamiento que antes, podemos suponer que ambas siguen distribuciones gaussianas.
+
+### Pregunta 2.2
+
+Considera la siguiente pregunta:
+
+¿Existe una diferencia significativa entre el valor medio del peso del cerebro para sujetos mayores (edad > 46) y sujetos más jóvenes (edad ≤ 46)?
+
+Responde a la pregunta anterior con un procedimiento estadístico apropiado y comenta los resultados.
+
+```{r}
+realizar_t_test <- function(x, y, alternative = c("two.sided")) {
+  
+  alpha <- 0.05
+
+  t_test_result <- t.test(x, y, alternative = alternative, paired = TRUE, conf.level = 0.95, var.equal = FALSE)
+  
+  cat("El valor obtenido para el p-value es:", paste0(t_test_result$p.value, ".\n"))
+  
+  if (t_test_result$p.value < alpha) {
+    cat("Se rechaza la hipótesis nula.\n\n")
+  } else {
+    cat("No se puede rechazar la hipótesis nula.\n\n")
+  }
+}
+
+realizar_t_test(agerange_1$brainweight, agerange_2$brainweight)
+```
+
+```{r}
+length(agerange_1$brainweight)
+length(agerange_2$brainweight)
+```
+
+
+
