@@ -25,7 +25,7 @@ if (!require(pacman)) {
   install.packages("pacman")
   library(pacman)
 }
-pacman::p_load(readr, stringr, tidyr, dplyr, readxl, ggplot2, forcats, MASS, statmod, kableExtra, greekLetters)
+pacman::p_load(readr, stringr, tidyr, dplyr, readxl, ggplot2, forcats, MASS, statmod, kableExtra, greekLetters, fitdistrplus)
 
 set.seed(33)
 ```
@@ -290,5 +290,55 @@ ggplot(brainhead, aes(x = brainweight, fill = agerange, color = "black")) +
 ```
 
 
+## Pregunta 2.3
 
+**Enunciado**
 
+¿Qué modelo estadístico podría ser apropiado para la distribución del volumen de la cabeza (headsize)? Para el modelo seleccionado, encuntra el estimador de máxima verosimilitud de los parámetros y dibuja la densidad encontrada por encima del histograma de los datos.
+
+Puedes probar múltiples modelos y comentar cuál parece obtener el mejor ajuste.
+
+**Resolución**
+
+Para averiguar qué modelo es el más apropiado, empleamos la función `descdist()` del paquete `fitdistrplus`.
+
+```{r}
+descdist(brainhead$headsize)
+```
+
+Observamos que la distribución más cercana es la normal. Por tanto, calculamos el estimador de máxima verosimilitud de los parámetros de una distribución normal, $\mu$, $\sigma$, que son respectivamente la media empírica y la desviación típica de los datos.
+
+```{r}
+mu_est <- mean(brainhead$headsize)
+sigma_est <- sd(brainhead$headsize)
+
+est <- data.frame(
+  paste(greeks("mu"),    "=", mu_est),
+  paste(greeks("sigma"), "=", sigma_est))
+colnames(est) <- c()
+
+kable(est)
+```
+
+Ahora representamos el histograma de densidad de los datos de *headsize* junto a la distribución normal de densidad con los estimadores obtenidos.
+
+```{r}
+ggplot(data = brainhead, aes(x = headsize)) +
+  geom_histogram(
+    bins = 10,
+    fill = "lightblue",
+    color = "black",
+    aes(y = after_stat(density))) +
+  stat_function(
+    fun = dnorm,
+    args = list(
+      mean = mu_est,
+      sd = sigma_est),
+    color = "red",
+    size = 1) +
+  labs(
+    title = "Histograma de densidad del volumen de la cabeza",
+    x = "volumen de la cabeza",
+    y = "densidad") +
+  theme_minimal()
+```
