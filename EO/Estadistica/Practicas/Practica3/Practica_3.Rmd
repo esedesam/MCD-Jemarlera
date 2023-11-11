@@ -100,6 +100,7 @@ realizar_t_test <- function(x, y, alternative = c("two.sided")) {
   t_test_result <- t.test(x$len, y$len, alternative = alternative, paired = FALSE, conf.level = 0.95, var.equal = FALSE)
   
   cat("El valor obtenido para el p-value es:", paste0(round(t_test_result$p.value, 6), ".\n"))
+  cat("El intervalo de confianza es:", paste0(t_test_result$conf.int, ".\n"))
   
   if (t_test_result$p.value < alpha) {
     cat("Se rechaza la hipótesis nula.\n\n")
@@ -243,7 +244,9 @@ shap_2
 
 ```
 
-### Pregunta 2.2
+## Pregunta 2.2
+
+**Enunciado**
 
 Considera la siguiente pregunta:
 
@@ -251,14 +254,19 @@ Considera la siguiente pregunta:
 
 Responde a la pregunta anterior con un procedimiento estadístico apropiado y comenta los resultados.
 
-```{r}
-realizar_t_test <- function(x, y, alternative = c("two.sided")) {
+**Resolución**
+
+La hipótesis nula (H0) en este caso es que la diferencia entre las medias sea 0. La hipótesis alternativa (H1) es que sí que haya diferencia significativa.
+
+```{r realizar_test_2}
+realizar_t_test_2 <- function(x, y, alternative = c("two.sided")) {
   
   alpha <- 0.05
 
   t_test_result <- t.test(x, y, alternative = alternative, paired = FALSE, conf.level = 0.95, var.equal = FALSE)
   
   cat("El valor obtenido para el p-value es:", paste0(t_test_result$p.value, ".\n"))
+  cat("El intervalo de confianza es:", paste0(t_test_result$conf.int, ".\n"))
   
   if (t_test_result$p.value < alpha) {
     cat("Se rechaza la hipótesis nula.\n\n")
@@ -267,13 +275,20 @@ realizar_t_test <- function(x, y, alternative = c("two.sided")) {
   }
 }
 
-realizar_t_test(agerange_1$brainweight, agerange_2$brainweight)
+realizar_t_test_2(agerange_1$brainweight, agerange_2$brainweight, alternative = c("two.sided"))
+```
+Al rechazarse la hipótesis nula, se concluye que sí que existe una diferencia significativa.
+
+```{r histograma_ambos}
+brainhead$agerange <- factor(brainhead$agerange)
+
+ggplot(brainhead, aes(x = brainweight, fill = agerange, color = "black")) +
+  geom_histogram(binwidth = 100, position = "identity", alpha = 0.5) +
+  labs(title = "Histograma de Brainweight por Age Range", x = "Brainweight", y = "Frecuencia") +
+  scale_fill_manual(values = c("blue", "green")) +  # Asigna colores manualmente
+  theme_minimal()
 ```
 
-```{r}
-length(agerange_1$brainweight)
-length(agerange_2$brainweight)
-```
 
 
 
