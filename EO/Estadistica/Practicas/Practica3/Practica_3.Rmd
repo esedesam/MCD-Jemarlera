@@ -30,6 +30,141 @@ pacman::p_load(readr, stringr, tidyr, dplyr, readxl, ggplot2, forcats, MASS, sta
 set.seed(33)
 ```
 
+# Problema 1
+
+**Enunciado inicial**
+
+El conjunto de datos ToothGrowth describe el efecto de la vitamina C en el crecimiento de los dientes en cobayas. Se registró la longitud de los odontoblastos (células responsables del crecimiento dental) en 60 cobayas. Cada animal recibió uno de tres niveles de dosis de vitamina C (0.5, 1 y 2 mg/día) mediante uno de dos métodos de administración: jugo de naranja (OJ) y ácido ascórbico (VC). El marco de datos contiene tres columnas:
+
+- len: longitud del diente
+- supp: tipo de suplemento (VC o OJ)
+- dose: nivel de dosis
+
+**Carga de datos inicial**
+
+```{r carga_tooth, echo = FALSE}
+tooth <- read_csv("data/ToothGrowth.csv")
+```
+
+## Pregunta 1.1
+
+**Enunciado**
+
+Halla la longitud media del diente para todas las seis combinaciones de tipos de suplementos y niveles. También proporciona el error estándar de la media para cada situación.
+
+**Resolución**
+
+```{r sum_diente}
+summary_diente <- tooth %>%
+  group_by(supp, dose) %>%
+  summarise(longitudMedia = round(mean(len), 2), errEstMedia = round(sd(len) / n(), 2)) %>%
+  arrange(desc(longitudMedia))
+
+# pasar a kable summary_diente
+
+summary_diente %>%
+  kbl() %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  add_header_above(c(" ", "Longitud Media" = 2, " "), bold = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+## Pregunta 1.2
+
+**Enunciado**
+
+Vamos a investigar si diferentes niveles de dosis tienen el mismo efecto. Realizaremos pruebas t de dos muestras con varianzas desiguales, utilizando un nivel de significancia del 0.05, para verificar si se rechazan las siguientes hipótesis nulas. Explicaré el resultado de cada hipótesis:
+
+**Resolución**
+
+- Con el método OJ, los niveles de dosis de 0.5 y 1.0 mg/día muestran el mismo efecto en la longitud del diente.
+
+- Con el método OJ, los niveles de dosis de 1.0 y 2.0 mg/día muestran el mismo efecto en la longitud del diente.
+
+- Con el método VC, los niveles de dosis de 0.5 y 1.0 mg/día presentan el mismo efecto en la longitud del diente.
+
+- Con el método VC, los niveles de dosis de 1.0 y 2.0 mg/día muestran el mismo efecto en la longitud del diente.
+
+
+```{r funcion_t_test}
+realizar_t_test <- function(x, y, alternative = c("two.sided")) {
+  
+  alpha <- 0.05
+  supp_x <- unique(x$supp)
+  dose_x <- unique(x$dose)
+  supp_y <- unique(y$supp)
+  dose_y <- unique(y$dose)
+
+  cat("Comparando:", paste("supp =", supp_x, "dose =", dose_x), "con", paste0("supp = ", supp_y, " dose = ", dose_y, "."), "\n")
+
+  t_test_result <- t.test(x$len, y$len, alternative = alternative, paired = FALSE, conf.level = 0.95, var.equal = FALSE)
+  
+  cat("El valor obtenido para el p-value es:", paste0(round(t_test_result$p.value, 6), ".\n"))
+  
+  if (t_test_result$p.value < alpha) {
+    cat("Se rechaza la hipótesis nula.\n\n")
+  } else {
+    cat("No se puede rechazar la hipótesis nula.\n\n")
+  }
+}
+```
+
+```{r Ej1_2}
+realizar_t_test(tooth %>%
+                  dplyr::filter(supp == "OJ", dose == 0.5),
+                tooth %>%
+                  dplyr::filter(supp == "OJ", dose == 1.0))
+
+realizar_t_test(tooth %>%
+                  dplyr::filter(supp == "OJ", dose == 1.0),
+                tooth %>%
+                  dplyr::filter(supp == "OJ", dose == 2.0))
+
+realizar_t_test(tooth %>%
+                  dplyr::filter(supp == "VC", dose == 0.5),
+                tooth %>%
+                  dplyr::filter(supp == "VC", dose == 1.0))
+
+realizar_t_test(tooth %>%
+                  dplyr::filter(supp == "VC", dose == 1.0),
+                tooth %>%
+                  dplyr::filter(supp == "VC", dose == 2.0))
+
+```
+
+## Ejercicio 1.3
+
+**Enunciado**
+
+Estamos interesados en determinar si OJ es más efectivo que VC. Realiza pruebas t de dos muestras, con varianzas desiguales y un nivel de significancia de 0.05, para verificar si se rechazan las siguientes hipótesis nulas:
+
+**Resolución**
+
+- Con el nivel de dosis de 0.5 mg/día, queremos determinar si OJ es menos efectivo o igual de efectivo que VC en el crecimiento dental.
+- Con el nivel de dosis de 1.0 mg/día, evaluamos si OJ es menos efectivo o igual de efectivo que VC en el crecimiento dental.
+- Con el nivel de dosis de 2.0 mg/día, buscamos saber si OJ es menos efectivo o igual de efectivo que VC en el crecimiento dental.
+
+- ¿En qué nivel(es) de dosis podemos afirmar que OJ es más efectivo que VC?
+
+```{r ej1_3}
+realizar_t_test(tooth %>%
+                  dplyr::filter(supp == "OJ", dose == 0.5),
+                tooth %>%
+                  dplyr::filter(supp == "VC", dose == 0.5), alternative = c("greater"))
+
+realizar_t_test(tooth %>%
+                  dplyr::filter(supp == "OJ", dose == 1.0),
+                tooth %>%
+                  dplyr::filter(supp == "VC", dose == 1.0), alternative = c("greater"))
+
+realizar_t_test(tooth %>%
+                  dplyr::filter(supp == "OJ", dose == 2.0),
+                tooth %>%
+                  dplyr::filter(supp == "VC", dose == 2.0), alternative = c("greater"))
+```
+
+Rechazar la hipótesis nula implica aceptar la otra, pues es la hipótesis alternativa. Esto se hace bajo el nivel de significancia que tenemos.
+
 
 ## Ejercicio 2
 
